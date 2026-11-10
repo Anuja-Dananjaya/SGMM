@@ -1,0 +1,15 @@
+# .NET
+bin/
+obj/
+.vs/
+
+# Node
+node_modules/
+dist/
+
+# Secrets and local settings
+appsettings.Development.json
+.env
+
+# OS / editor
+.DS_Store
