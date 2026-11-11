@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using GymManagement.API.Data;
+using Microsoft.AspNetCore.Identity;
+using GymManagement.API.Models;
+using GymManagement.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +15,14 @@ builder.Services.AddSwaggerGen();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+// Configure ASP.NET Core Identity
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+
+builder.Services.AddScoped<IMembershipPlanService, MembershipPlanService>();
 
 // Configure CORS for the Vite React frontend
 builder.Services.AddCors(options =>
@@ -37,6 +48,7 @@ app.UseHttpsRedirection();
 
 // Use CORS before Authorization
 app.UseCors("AllowReactApp");
+app.UseAuthorization();
 app.UseAuthorization();
 app.MapControllers();
 

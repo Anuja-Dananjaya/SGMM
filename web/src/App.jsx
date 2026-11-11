@@ -1,45 +1,29 @@
-import { useEffect, useState } from 'react'
-import axios from 'axios'
-import './App.css'
+import { useEffect, useState } from "react";
+import axios from "axios";
+import MembershipList from "./components/MembershipList"; // Import the new component
+import "./App.css";
 
 function App() {
-  const [health, setHealth] = useState(null)
-  const [error, setError] = useState(null)
+  const [status, setStatus] = useState("Checking...");
 
   useEffect(() => {
-    // Replace 7143 with the actual HTTPS port from your launchSettings.json
     axios.get('http://localhost:5207/api/health')
-      .then(response => {
-        setHealth(response.data)
-      })
-      .catch(err => {
-        setError(err.message)
-      })
-  }, [])
+      .then(response => setStatus(response.data.status))
+      .catch(() => setStatus("Error connecting to API"));
+  }, []);
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
+    <div>
       <h1>Gym Management System</h1>
-      <h2>System Health Check</h2>
+      <div style={{ padding: "10px", backgroundColor: status === "Healthy" ? "green" : "red" }}>
+        API Status: {status}
+      </div>
+
+      {/* Render the Membership List */}
+      <MembershipList />
       
-      {error && (
-        <div style={{ color: 'red', border: '1px solid red', padding: '1rem' }}>
-          <p><strong>Connection Error:</strong> {error}</p>
-          <p>Ensure your ASP.NET backend is running and the port in App.jsx matches launchSettings.json.</p>
-        </div>
-      )}
-      
-      {health ? (
-        <div style={{ border: '1px solid green', padding: '1rem', borderRadius: '8px', backgroundColor: '#f0fdf4' }}>
-          <p><strong>API Status:</strong> {health.status}</p>
-          <p><strong>Database:</strong> {health.database}</p>
-          <p><strong>Timestamp:</strong> {new Date(health.timestamp).toLocaleString()}</p>
-        </div>
-      ) : (
-        !error && <p>Loading health status...</p>
-      )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
