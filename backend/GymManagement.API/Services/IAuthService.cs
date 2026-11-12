@@ -1,5 +1,6 @@
 using GymManagement.API.Models;
 using System.Threading.Tasks;
+using GymManagement.API.Dtos;
 
 namespace GymManagement.API.Services
 {

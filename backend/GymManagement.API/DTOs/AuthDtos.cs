@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace GymManagement.API.Models
+namespace GymManagement.API.Dtos
 {
     public class RegisterDto
     {

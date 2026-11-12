@@ -2,6 +2,7 @@ using GymManagement.API.Models;
 using GymManagement.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using GymManagement.API.Dtos;
 
 namespace GymManagement.API.Controllers
 {

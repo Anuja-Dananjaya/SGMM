@@ -3,6 +3,7 @@ using GymManagement.API.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using GymManagement.API.Dtos;
 
 namespace GymManagement.API.Services
 {
