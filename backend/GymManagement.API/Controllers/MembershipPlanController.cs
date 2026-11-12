@@ -3,6 +3,7 @@ using GymManagement.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace GymManagement.API.Controllers
 {
@@ -33,6 +34,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<MembershipPlan>> PostMembershipPlan(MembershipPlan plan)
         {
             var createdPlan = await _service.CreatePlanAsync(plan);
@@ -40,6 +42,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> PutMembershipPlan(int id, MembershipPlan plan)
         {
             var success = await _service.UpdatePlanAsync(id, plan);
@@ -48,6 +51,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteMembershipPlan(int id)
         {
             var success = await _service.DeletePlanAsync(id);
