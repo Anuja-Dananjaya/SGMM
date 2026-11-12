@@ -94,15 +94,15 @@ namespace GymManagement.API.Services
 
         public async Task<IEnumerable<object>> GetAllUsersAsync()
         {
-            // Fetch all users and return their ID, Name, and Email
-            var users = await _userManager.Users.Select(u => new 
+            // LOCK: Only fetch users who are explicitly in the "Member" role
+            var members = await _userManager.GetUsersInRoleAsync("Member");
+            
+            return members.Select(u => new 
             {
                 u.Id,
                 u.FullName,
                 u.Email
-            }).ToListAsync();
-
-            return users;
+            });
         }
-    }
+    } 
 }

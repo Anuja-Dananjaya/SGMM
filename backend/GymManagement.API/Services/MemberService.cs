@@ -75,5 +75,17 @@ namespace GymManagement.API.Services
 
             return members;
         }
+
+        public async Task<bool> CancelMembershipAsync(int memberId)
+        {
+            var member = await _context.Members.FindAsync(memberId);
+            if (member == null) return false;
+
+            member.IsActive = false;
+            member.EndDate = DateTime.UtcNow; // Expire it immediately
+            
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

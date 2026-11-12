@@ -3,6 +3,7 @@ import axios from "axios";
 import MembershipList from "./components/MembershipList";
 import MembersList from "./components/MemberList";
 import Login from "./components/Login";
+import FrontDeskQR from "./components/FrontDeskQR";
 import "./App.css";
 
 function App() {
@@ -45,10 +46,10 @@ function App() {
             <button onClick={handleLogout} style={{ padding: "0.5rem 1rem", cursor: "pointer" }}>Logout</button>
           </div>
 
+          <FrontDeskQR />
           <MembershipList />
           <MembersList /> {/* NEW COMPONENT */}
-          
-          <MembershipList />
+        
         </div>
       ) : (
         <Login onLoginSuccess={() => {

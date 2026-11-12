@@ -35,5 +35,14 @@ namespace GymManagement.API.Controllers
             var members = await _memberService.GetAllMembersAsync();
             return Ok(members);
         }
+
+        [HttpPut("{id}/cancel")]
+        public async Task<IActionResult> CancelMembership(int id)
+        {
+            var success = await _memberService.CancelMembershipAsync(id);
+            if (!success) return NotFound("Membership record not found.");
+            
+            return Ok(new { message = "Membership cancelled successfully." });
+        }
     }
 }
