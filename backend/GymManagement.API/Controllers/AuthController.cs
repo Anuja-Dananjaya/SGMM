@@ -3,6 +3,7 @@ using GymManagement.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using GymManagement.API.Dtos;
+using Microsoft.AspNetCore.Authorization;
 
 namespace GymManagement.API.Controllers
 {
@@ -31,6 +32,14 @@ namespace GymManagement.API.Controllers
             var response = await _authService.LoginAsync(dto);
             if (response == null) return Unauthorized("Invalid email or password.");
             return Ok(response);
+        }
+        
+        [HttpGet("users")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _authService.GetAllUsersAsync();
+            return Ok(users);
         }
     }
 }

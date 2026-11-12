@@ -1,5 +1,6 @@
 using GymManagement.API.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -89,6 +90,19 @@ namespace GymManagement.API.Services
                 FullName = user.FullName,
                 Role = userRole
             };
+        }
+
+        public async Task<IEnumerable<object>> GetAllUsersAsync()
+        {
+            // Fetch all users and return their ID, Name, and Email
+            var users = await _userManager.Users.Select(u => new 
+            {
+                u.Id,
+                u.FullName,
+                u.Email
+            }).ToListAsync();
+
+            return users;
         }
     }
 }

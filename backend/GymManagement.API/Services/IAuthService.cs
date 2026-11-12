@@ -8,5 +8,6 @@ namespace GymManagement.API.Services
     {
         Task<AuthResponseDto?> LoginAsync(LoginDto loginDto);
         Task<bool> RegisterAsync(RegisterDto registerDto);
+        Task<IEnumerable<object>> GetAllUsersAsync();
     }
 }
