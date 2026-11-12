@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import MembershipList from "./components/MembershipList";
+import MembersList from "./components/MemberList";
 import Login from "./components/Login";
 import "./App.css";
 
@@ -43,6 +44,9 @@ function App() {
             <p style={{ margin: 0 }}>Welcome back, <strong>{userName}</strong></p>
             <button onClick={handleLogout} style={{ padding: "0.5rem 1rem", cursor: "pointer" }}>Logout</button>
           </div>
+
+          <MembershipList />
+          <MembersList /> {/* NEW COMPONENT */}
           
           <MembershipList />
         </div>
