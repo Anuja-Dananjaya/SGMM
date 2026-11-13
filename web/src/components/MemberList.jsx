@@ -16,27 +16,27 @@ export default function MembersList() {
 
     const fetchMembers = () => {
         const token = localStorage.getItem("token");
-        
-        axios.get('http://localhost:5207/api/members', {
+
+        axios.get('/api/members', {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(response => setMembers(response.data))
-        .catch(err => {
-            console.error("Error fetching members:", err);
-            setError("Failed to load members.");
-        });
+            .then(response => setMembers(response.data))
+            .catch(err => {
+                console.error("Error fetching members:", err);
+                setError("Failed to load members.");
+            });
     };
 
     const handleCancel = (id) => {
         if (!window.confirm("Are you sure you want to cancel this membership?")) return;
-        
+
         const token = localStorage.getItem("token");
-        
-        axios.put(`http://localhost:5207/api/members/${id}/cancel`, {}, {
+
+        axios.put(`/api/members/${id}/cancel`, {}, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(() => fetchMembers()) // Refresh to show it as Expired
-        .catch(() => alert("Failed to cancel membership."));
+            .then(() => fetchMembers()) // Refresh to show it as Expired
+            .catch(() => alert("Failed to cancel membership."));
     };
 
     const handleSaveSuccess = () => {
@@ -54,17 +54,17 @@ export default function MembersList() {
                     </button>
                 )}
             </div>
-            
+
             {error && <p style={{ color: "red" }}>{error}</p>}
 
             {/* Show the assignment form if the button was clicked */}
             {isFormOpen && (
-                <AssignMemberForm 
-                    onSave={handleSaveSuccess} 
-                    onCancel={() => setIsFormOpen(false)} 
+                <AssignMemberForm
+                    onSave={handleSaveSuccess}
+                    onCancel={() => setIsFormOpen(false)}
                 />
             )}
-            
+
             {!isFormOpen && members.length === 0 && !error ? (
                 <p>No members have been assigned plans yet.</p>
             ) : (
@@ -90,9 +90,9 @@ export default function MembersList() {
                                     <td>{new Date(member.startDate).toLocaleDateString()}</td>
                                     <td>{new Date(member.endDate).toLocaleDateString()}</td>
                                     <td>
-                                        <span style={{ 
-                                            padding: "4px 8px", 
-                                            borderRadius: "4px", 
+                                        <span style={{
+                                            padding: "4px 8px",
+                                            borderRadius: "4px",
                                             backgroundColor: member.isActive ? "#28a745" : "#dc3545",
                                             color: "white",
                                             fontSize: "0.85rem"
@@ -103,8 +103,8 @@ export default function MembersList() {
                                     {isAdminOrStaff && (
                                         <td>
                                             {member.isActive && (
-                                                <button 
-                                                    onClick={() => handleCancel(member.id)} 
+                                                <button
+                                                    onClick={() => handleCancel(member.id)}
                                                     style={{ backgroundColor: "#ffc107", color: "black", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}>
                                                     Cancel Plan
                                                 </button>

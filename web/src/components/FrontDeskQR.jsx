@@ -8,18 +8,18 @@ export default function FrontDeskQR() {
 
     const fetchQRCode = () => {
         const token = localStorage.getItem("token");
-        
-        axios.get('http://localhost:5207/api/checkin/active-qr', {
+
+        axios.get('/api/checkin/active-qr', {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(response => {
-            setQrData(response.data);
-            setError(null);
-        })
-        .catch(err => {
-            console.error("Failed to fetch QR code", err);
-            setError("Unable to load secure Check-In Code.");
-        });
+            .then(response => {
+                setQrData(response.data);
+                setError(null);
+            })
+            .catch(err => {
+                console.error("Failed to fetch QR code", err);
+                setError("Unable to load secure Check-In Code.");
+            });
     };
 
     useEffect(() => {
@@ -36,13 +36,13 @@ export default function FrontDeskQR() {
     }, []);
 
     return (
-        <div style={{ 
-            marginTop: "2rem", 
-            padding: "2rem", 
-            border: "1px solid #444", 
-            borderRadius: "8px", 
+        <div style={{
+            marginTop: "2rem",
+            padding: "2rem",
+            border: "1px solid #444",
+            borderRadius: "8px",
             textAlign: "center",
-            backgroundColor: "#111" 
+            backgroundColor: "#111"
         }}>
             <h2>Live Check-In Scanner</h2>
             <p style={{ color: "#aaa", marginBottom: "2rem" }}>
@@ -52,15 +52,15 @@ export default function FrontDeskQR() {
             {error && <p style={{ color: "red" }}>{error}</p>}
 
             {qrData ? (
-                <div style={{ 
-                    display: "inline-block", 
-                    padding: "1rem", 
-                    backgroundColor: "white", 
-                    borderRadius: "8px" 
+                <div style={{
+                    display: "inline-block",
+                    padding: "1rem",
+                    backgroundColor: "white",
+                    borderRadius: "8px"
                 }}>
-                    <QRCodeSVG 
-                        value={qrData.qrCode} 
-                        size={250} 
+                    <QRCodeSVG
+                        value={qrData.qrCode}
+                        size={250}
                         level={"H"} // High error correction
                         marginSize={2}
                     />

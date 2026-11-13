@@ -15,12 +15,12 @@ export default function AssignMemberForm({ onSave, onCancel }) {
         const headers = { 'Authorization': `Bearer ${token}` };
 
         // 1. Fetch all registered users
-        axios.get('http://localhost:5207/api/auth/users', { headers })
+        axios.get('/api/auth/users', { headers })
             .then(response => setUsers(response.data))
             .catch(() => setError("Failed to load users."));
 
         // 2. Fetch all membership plans (public endpoint, no token needed)
-        axios.get('http://localhost:5207/api/membershipplans')
+        axios.get('/api/membershipplans')
             .then(response => setPlans(response.data))
             .catch(() => setError("Failed to load plans."));
     }, []);
@@ -40,29 +40,29 @@ export default function AssignMemberForm({ onSave, onCancel }) {
         }
 
         const token = localStorage.getItem("token");
-        
+
         const payload = {
             userId: formData.userId,
             membershipPlanId: parseInt(formData.membershipPlanId, 10)
         };
 
-        axios.post('http://localhost:5207/api/members/assign', payload, {
+        axios.post('/api/members/assign', payload, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(() => onSave()) // Refresh list and close form
-        .catch(err => {
-            console.error(err);
-            setError("Failed to assign plan. Check console for details.");
-        });
+            .then(() => onSave()) // Refresh list and close form
+            .catch(err => {
+                console.error(err);
+                setError("Failed to assign plan. Check console for details.");
+            });
     };
 
     return (
         <div style={{ padding: "1.5rem", border: "2px solid #28a745", borderRadius: "8px", marginBottom: "2rem", backgroundColor: "#111" }}>
             <h3>Assign Membership to User</h3>
             {error && <p style={{ color: "red" }}>{error}</p>}
-            
+
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "400px" }}>
-                
+
                 <select name="userId" value={formData.userId} onChange={handleChange} required style={{ padding: "0.5rem" }}>
                     <option value="">-- Select a User --</option>
                     {users.map(user => (
@@ -80,7 +80,7 @@ export default function AssignMemberForm({ onSave, onCancel }) {
                         </option>
                     ))}
                 </select>
-                
+
                 <div style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
                     <button type="submit" style={{ backgroundColor: "#28a745", color: "white", padding: "0.5rem 1rem", border: "none", borderRadius: "4px", cursor: "pointer" }}>
                         Assign Plan

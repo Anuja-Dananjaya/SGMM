@@ -7,7 +7,7 @@ export default function MembershipList() {
     const [error, setError] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [planToEdit, setPlanToEdit] = useState(null);
-    
+
     const userRole = localStorage.getItem("userRole");
     const isAdmin = userRole === "Admin";
 
@@ -16,7 +16,7 @@ export default function MembershipList() {
     }, []);
 
     const fetchPlans = () => {
-        axios.get('http://localhost:5207/api/membershipplans')
+        axios.get('/api/membershipplans')
             .then(response => setPlans(response.data))
             .catch(err => {
                 console.error("Error fetching plans:", err);
@@ -28,13 +28,13 @@ export default function MembershipList() {
         if (!window.confirm("Are you sure you want to delete this plan?")) return;
         const token = localStorage.getItem("token");
 
-        axios.delete(`http://localhost:5207/api/membershipplans/${id}`, {
+        axios.delete(`/api/membershipplans/${id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(() => {
-            setPlans(plans.filter(plan => plan.id !== id));
-        })
-        .catch(() => alert("Failed to delete."));
+            .then(() => {
+                setPlans(plans.filter(plan => plan.id !== id));
+            })
+            .catch(() => alert("Failed to delete."));
     };
 
     const handleEdit = (plan) => {
@@ -63,18 +63,18 @@ export default function MembershipList() {
                     </button>
                 )}
             </div>
-            
+
             {error && <p style={{ color: "red" }}>{error}</p>}
 
             {/* Show the form if the Add/Edit button was clicked */}
             {isFormOpen && (
-                <MembershipForm 
-                    planToEdit={planToEdit} 
-                    onSave={handleSaveSuccess} 
-                    onCancel={handleCancel} 
+                <MembershipForm
+                    planToEdit={planToEdit}
+                    onSave={handleSaveSuccess}
+                    onCancel={handleCancel}
                 />
             )}
-            
+
             {!isFormOpen && plans.length === 0 && !error ? (
                 <p>No plans available.</p>
             ) : (

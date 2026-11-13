@@ -5,6 +5,7 @@ import MembersList from "./components/MemberList";
 import Login from "./components/Login";
 import FrontDeskQR from "./components/FrontDeskQR";
 import "./App.css";
+axios.defaults.baseURL = 'http://localhost:5207';
 
 function App() {
   const [status, setStatus] = useState("Checking...");
@@ -13,7 +14,7 @@ function App() {
 
   useEffect(() => {
     // 1. Check API Health
-    axios.get('http://localhost:5207/api/health')
+    axios.get('/api/health')
       .then(response => setStatus(response.data.status))
       .catch(() => setStatus("Error connecting to API"));
 
@@ -49,7 +50,7 @@ function App() {
           <FrontDeskQR />
           <MembershipList />
           <MembersList /> {/* NEW COMPONENT */}
-        
+
         </div>
       ) : (
         <Login onLoginSuccess={() => {
@@ -57,7 +58,7 @@ function App() {
           setUserName(localStorage.getItem("userName"));
         }} />
       )}
-      
+
     </div>
   );
 }
