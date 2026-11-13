@@ -76,9 +76,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5173") // Restores React Web access
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .SetIsOriginAllowed(origin => true); // Keeps Mobile Expo access open
     });
 });
 
@@ -91,11 +92,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 // Use CORS before Authorization
 app.UseCors("AllowReactApp");
-app.UseAuthorization();
 app.UseAuthorization();
 app.MapControllers();
 
