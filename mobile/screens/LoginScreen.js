@@ -15,22 +15,24 @@ export default function LoginScreen({ navigation }) {
         }
 
         try {
-            const response = await axios.post('/api/Auth/login', {
-                email: email,
-                password: password
-            });
+    const response = await axios.post('/api/Auth/login', {
+        email: email,
+        password: password
+    });
 
-            // Securely save the JWT token to the phone's encrypted storage
-            await SecureStore.setItemAsync('token', response.data.token);
-            
-            Alert.alert("Success", "Logged in successfully!");
-            
-            // Next step: Navigate to the QR Scanner screen
-            // navigation.navigate("Scanner");
-        } catch (error) {
-            console.error(error);
-            Alert.alert("Login Failed", "Invalid email or password. Make sure your backend server is running.");
-        }
+    // Save token
+    await SecureStore.setItemAsync('token', response.data.token);
+    
+    // Show success message
+    Alert.alert("Success", "Logged in successfully!");
+    
+    // Force navigation instantly
+    navigation.navigate("Scanner");
+    
+} catch (error) {
+    console.error("Login Error:", error);
+    Alert.alert("Login Failed", "Invalid email or password.");
+}
     };
 
     return (
