@@ -17,10 +17,26 @@ namespace GymManagement.API.Data
         public DbSet<GymClass> GymClasses { get; set; }
         public DbSet<ClassBooking> ClassBookings { get; set; }
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
+        public DbSet<WorkoutDay> WorkoutDays { get; set; }
+        public DbSet<WorkoutExercise> WorkoutExercises { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-        }
+
+            builder.Entity<WorkoutPlan>()
+                .HasMany(wp => wp.WorkoutDays)
+                .WithOne(wd => wd.WorkoutPlan)
+                .HasForeignKey(wd => wd.WorkoutPlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<WorkoutDay>()
+                .HasMany(wd => wd.Exercises)
+                .WithOne(we => we.WorkoutDay)
+                .HasForeignKey(we => we.WorkoutDayId)
+                .OnDelete(DeleteBehavior.Cascade);
+       }
     }
 }
