@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
+
+// Components
+import Navbar from "./components/Navbar";
 import MembershipList from "./components/MembershipList";
 import MembersList from "./components/MemberList";
 import Login from "./components/Login";
 import FrontDeskQR from "./components/FrontDeskQR";
+import AdminClasses from './components/AdminClasses'; 
 import "./App.css";
+
 axios.defaults.baseURL = 'http://localhost:5207';
 
 function App() {
@@ -13,12 +19,10 @@ function App() {
   const [userName, setUserName] = useState("");
 
   useEffect(() => {
-    // 1. Check API Health
     axios.get('/api/health')
       .then(response => setStatus(response.data.status))
       .catch(() => setStatus("Error connecting to API"));
 
-    // 2. Check if already logged in (token exists in storage)
     const token = localStorage.getItem("token");
     if (token) {
       setIsAuthenticated(true);
@@ -33,33 +37,46 @@ function App() {
     setIsAuthenticated(false);
   };
 
+  // If not logged in, just show the Login screen
+  if (!isAuthenticated) {
+      return (
+          <Login onLoginSuccess={() => {
+              setIsAuthenticated(true);
+              setUserName(localStorage.getItem("userName"));
+          }} />
+      );
+  }
+
+  // If logged in, show the Navbar and route to the correct page
   return (
-    <div>
-      <h1>Gym Management System</h1>
-      <div style={{ padding: "10px", backgroundColor: status === "Healthy" ? "green" : "red", marginBottom: "1rem" }}>
-        API Status: {status}
-      </div>
+    <Router>
+      <div style={{ minHeight: '100vh', backgroundColor: '#f4f6f8' }}>
+        <Navbar userName={userName} onLogout={handleLogout} />
+        
+        <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+          <Routes>
+            {/* Home / Dashboard Route */}
+            <Route path="/" element={
+              <div>
+                <h1>System Dashboard</h1>
+                <div style={{ padding: "10px", backgroundColor: status === "Healthy" ? "#28a745" : "#dc3545", color: "white", display: "inline-block", borderRadius: "4px" }}>
+                  API Status: {status}
+                </div>
+              </div>
+            } />
 
-      {isAuthenticated ? (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#222", padding: "1rem", borderRadius: "8px" }}>
-            <p style={{ margin: 0 }}>Welcome back, <strong>{userName}</strong></p>
-            <button onClick={handleLogout} style={{ padding: "0.5rem 1rem", cursor: "pointer" }}>Logout</button>
-          </div>
-
-          <FrontDeskQR />
-          <MembershipList />
-          <MembersList /> {/* NEW COMPONENT */}
-
+            {/* Feature Routes */}
+            <Route path="/qr" element={<FrontDeskQR />} />
+            <Route path="/memberships" element={<MembershipList />} />
+            <Route path="/members" element={<MembersList />} />
+            <Route path="/classes" element={<AdminClasses />} />
+            
+            {/* Fallback route - redirects any unknown URL to Home */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
         </div>
-      ) : (
-        <Login onLoginSuccess={() => {
-          setIsAuthenticated(true);
-          setUserName(localStorage.getItem("userName"));
-        }} />
-      )}
-
-    </div>
+      </div>
+    </Router>
   );
 }
 

@@ -118,6 +118,82 @@ namespace GymManagement.API.Migrations
                     b.ToTable("CheckInRecords");
                 });
 
+            modelBuilder.Entity("GymManagement.API.Models.ClassBooking", b =>
+                {
+                    b.Property<int>("BookingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("BookingId"));
+
+                    b.Property<DateTime>("BookingDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("ClassId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("GymClassClassId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MemberId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("BookingId");
+
+                    b.HasIndex("GymClassClassId");
+
+                    b.ToTable("ClassBookings");
+                });
+
+            modelBuilder.Entity("GymManagement.API.Models.GymClass", b =>
+                {
+                    b.Property<int>("ClassId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ClassId"));
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ClassDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ClassName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("TrainerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ClassId");
+
+                    b.HasIndex("TrainerId");
+
+                    b.ToTable("GymClasses");
+                });
+
             modelBuilder.Entity("GymManagement.API.Models.Member", b =>
                 {
                     b.Property<int>("Id")
@@ -180,6 +256,36 @@ namespace GymManagement.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("MembershipPlans");
+                });
+
+            modelBuilder.Entity("GymManagement.API.Models.Trainer", b =>
+                {
+                    b.Property<int>("TrainerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TrainerId"));
+
+                    b.Property<string>("Availability")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Specialization")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("TrainerId");
+
+                    b.ToTable("Trainers");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -323,6 +429,26 @@ namespace GymManagement.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("GymManagement.API.Models.ClassBooking", b =>
+                {
+                    b.HasOne("GymManagement.API.Models.GymClass", "GymClass")
+                        .WithMany()
+                        .HasForeignKey("GymClassClassId");
+
+                    b.Navigation("GymClass");
+                });
+
+            modelBuilder.Entity("GymManagement.API.Models.GymClass", b =>
+                {
+                    b.HasOne("GymManagement.API.Models.Trainer", "Trainer")
+                        .WithMany()
+                        .HasForeignKey("TrainerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Trainer");
                 });
 
             modelBuilder.Entity("GymManagement.API.Models.Member", b =>

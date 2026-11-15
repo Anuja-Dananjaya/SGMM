@@ -13,6 +13,9 @@ namespace GymManagement.API.Data
         public DbSet<MembershipPlan> MembershipPlans { get; set; }
         public DbSet<Member> Members { get; set; }
         public DbSet<CheckInRecord> CheckInRecords { get; set; }
+        public DbSet<Trainer> Trainers { get; set; }
+        public DbSet<GymClass> GymClasses { get; set; }
+        public DbSet<ClassBooking> ClassBookings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
