@@ -27,7 +27,7 @@ export default function LoginScreen({ navigation }) {
     Alert.alert("Success", "Logged in successfully!");
     
     // Force navigation instantly
-    navigation.navigate("Scanner");
+    navigation.replace("Main");
     
 } catch (error) {
     console.error("Login Error:", error);
