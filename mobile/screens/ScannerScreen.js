@@ -49,19 +49,33 @@ export default function ScannerScreen({ navigation }) {
                 }
             );
 
+            // 1. If backend returns 200 OK but Success is false (graceful rejection)
+            if (response.data && response.data.success === false) {
+                Alert.alert("Notice", response.data.message, [
+                    { text: "Scan Again", onPress: () => setScanned(false) }
+                ]);
+                return;
+            }
+
+            // 2. If completely successful
             Alert.alert("Check-In Successful!", "Welcome to the gym!", [
                 { text: "OK", onPress: () => navigation.goBack() } 
             ]);
 
-             } catch (error) {
-            // This grabs the specific validation error C# sent back (e.g., "The Token field is required")
-            const backendError = error.response?.data?.errors || error.response?.data || error.message;
-            console.error("Backend Error Details:", JSON.stringify(backendError, null, 2));
+        } catch (error) {
+            // 3. If backend returns a 4xx or 5xx Error Status Code
+            const backendData = error.response?.data;
+            
+            // Extract the exact 'message' sent by C# (or fallback to a default error)
+            const displayMessage = backendData?.message || error.message || "An unexpected error occurred.";
+            
+            console.error("Backend Error Details:", JSON.stringify(backendData, null, 2));
 
-            Alert.alert("Check-In Failed", "Look at your PC terminal to see the exact C# error.", [
-             { text: "Scan Again", onPress: () => setScanned(false) }
-    ]);
-}
+            // Show the exact C# message in the mobile popup!
+            Alert.alert("Check-In Failed", displayMessage, [
+                { text: "Scan Again", onPress: () => setScanned(false) }
+            ]);
+        }
     };
 
     // ... keep your handleBarCodeScanned function exactly the same ...

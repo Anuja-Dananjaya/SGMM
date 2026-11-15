@@ -10,7 +10,7 @@ namespace GymManagement.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin,Staff")] // LOCK: Only Admins and Staff can manage members
+    [Authorize] // Require login globally for this controller
     public class MembersController : ControllerBase
     {
         private readonly IMemberService _memberService;
@@ -20,7 +20,23 @@ namespace GymManagement.API.Controllers
             _memberService = memberService;
         }
 
+        // Member Endpoint
+        [HttpGet("me")]
+        [Authorize(Roles = "Member")] 
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var profile = await _memberService.GetMemberProfileAsync(userId);
+            if (profile == null) return NotFound(new { Message = "Member profile not found." });
+
+            return Ok(profile);
+        }
+
+        // Admin & Staff Endpoints
         [HttpPost("assign")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<ActionResult<MemberResponseDto>> AssignMembership(AssignMembershipDto dto)
         {
             var result = await _memberService.AssignMembershipAsync(dto);
@@ -30,6 +46,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<ActionResult<IEnumerable<MemberResponseDto>>> GetAllMembers()
         {
             var members = await _memberService.GetAllMembersAsync();
@@ -37,6 +54,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpPut("{id}/cancel")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> CancelMembership(int id)
         {
             var success = await _memberService.CancelMembershipAsync(id);

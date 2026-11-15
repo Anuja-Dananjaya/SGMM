@@ -87,5 +87,28 @@ namespace GymManagement.API.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+
+        public async Task<MemberProfileDto?> GetMemberProfileAsync(string userId)
+        {
+            var member = await _context.Members
+                .Include(m => m.MembershipPlan)
+                .Include(m => m.User) 
+                .FirstOrDefaultAsync(m => m.UserId == userId);
+
+            if (member == null) return null;
+
+            return new MemberProfileDto
+            {
+                Id = member.Id,
+                FullName = member.User.UserName ?? "Unknown",
+                Email = member.User.Email ?? "",
+                PlanName = member.MembershipPlan?.Name ?? "No Plan",
+                StartDate = member.StartDate,
+                EndDate = member.EndDate,
+                IsActive = member.IsActive,
+                QRCodeContent = member.QRCodeContent ?? ""
+            };
+        }
     }
 }

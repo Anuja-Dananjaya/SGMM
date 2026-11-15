@@ -9,6 +9,7 @@ import axios from 'axios';
 import LoginScreen from './screens/LoginScreen';
 import ScannerScreen from './screens/ScannerScreen';
 import ClassesScreen from './screens/ClassesScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 // Global Axios URL for Uni/Home Hotspot
 axios.defaults.baseURL = 'http://192.168.8.115:5207';
@@ -27,6 +28,8 @@ function MainTabs() {
                         iconName = focused ? 'calendar' : 'calendar-outline';
                     } else if (route.name === 'Attendance') {
                         iconName = focused ? 'qr-code' : 'qr-code-outline';
+                    } else if (route.name === 'Profile') {
+                        iconName = focused ? 'person' : 'person-outline';
                     }
                     return <Ionicons name={iconName} size={size} color={color} />;
                 },
@@ -39,6 +42,7 @@ function MainTabs() {
         >
             <Tab.Screen name="Classes" component={ClassesScreen} options={{ title: 'Gym Classes' }} />
             <Tab.Screen name="Attendance" component={ScannerScreen} options={{ title: 'QR Check-in' }} />
+            <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
         </Tab.Navigator>
     );
 }
