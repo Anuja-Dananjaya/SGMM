@@ -43,5 +43,19 @@ namespace GymManagement.API.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("history")]
+        [Authorize(Roles = "Member")]
+        public async Task<IActionResult> GetMyCheckInHistory()
+        {
+            // 1. Get the member's user ID from their token
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            // 2. Fetch the history from the service
+            var history = await _checkInService.GetMemberCheckInHistoryAsync(userId);
+            
+            return Ok(history);
+        }
     }
 }

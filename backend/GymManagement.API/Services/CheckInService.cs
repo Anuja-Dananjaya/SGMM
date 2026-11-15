@@ -85,5 +85,20 @@ namespace GymManagement.API.Services
 
             return new CheckInResponseDto { Success = true, Message = "Check-in successful! Welcome to the gym." };
         }
+
+        public async Task<IEnumerable<CheckInHistoryDto>> GetMemberCheckInHistoryAsync(string userId)
+        {
+            var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
+            if (member == null) return new List<CheckInHistoryDto>();
+
+            return await _context.CheckInRecords
+        .Where(c => c.MemberId == member.Id)
+        .OrderByDescending(c => c.CheckInTime)
+        .Select(c => new CheckInHistoryDto
+        {
+            Id = c.Id, 
+            CheckInTime = c.CheckInTime
+        }).ToListAsync();
+        }
     }
 }

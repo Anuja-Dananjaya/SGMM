@@ -10,6 +10,7 @@ import LoginScreen from './screens/LoginScreen';
 import ScannerScreen from './screens/ScannerScreen';
 import ClassesScreen from './screens/ClassesScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import AttendanceHistoryScreen from './screens/AttendanceHistoryScreen';
 
 // Global Axios URL for Uni/Home Hotspot
 axios.defaults.baseURL = 'http://192.168.8.115:5207';
@@ -56,10 +57,22 @@ export default function App() {
                     name="Login" 
                     component={LoginScreen} 
                 />
+                
                 {/* After login, navigate to "Main" to show the tabs */}
                 <Stack.Screen 
                     name="Main" 
                     component={MainTabs} 
+                />
+
+                <Stack.Screen 
+                    name="AttendanceHistory" 
+                    component={AttendanceHistoryScreen} 
+                    options={{ 
+                        headerShown: true, // Overrides the global false so users can click "Back"
+                        title: 'Attendance History',
+                        headerStyle: { backgroundColor: '#1a1a1a' },
+                        headerTintColor: '#fff'
+                    }} 
                 />
             </Stack.Navigator>
         </NavigationContainer>

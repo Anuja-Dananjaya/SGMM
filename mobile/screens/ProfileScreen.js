@@ -94,6 +94,15 @@ export default function ProfileScreen({ navigation }) {
                 </View>
             </View>
 
+            {/* NEW BUTTON: View Attendance */}
+            <TouchableOpacity 
+                style={[styles.logoutButton, { backgroundColor: '#007bff', marginBottom: 15 }]} 
+                onPress={() => navigation.navigate('AttendanceHistory')}
+            >
+                <Text style={styles.logoutButtonText}>View Attendance History</Text>
+            </TouchableOpacity>
+
+            {/* LOGOUT BUTTON */}
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                 <Text style={styles.logoutButtonText}>Log Out</Text>
             </TouchableOpacity>
