@@ -24,6 +24,7 @@ export default function Navbar({ userName, onLogout }) {
                 <Link to="/memberships" style={getLinkStyle('/memberships')}>Memberships</Link>
                 <Link to="/members" style={getLinkStyle('/members')}>Members</Link>
                 <Link to="/classes" style={getLinkStyle('/classes')}>Classes</Link>
+                <Link to="/payments" style={getLinkStyle('/payments')}>Payments</Link>
             </div>
 
             <div style={styles.userSection}>

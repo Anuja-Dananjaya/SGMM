@@ -9,6 +9,7 @@ import MembersList from "./components/MemberList";
 import Login from "./components/Login";
 import FrontDeskQR from "./components/FrontDeskQR";
 import AdminClasses from './components/AdminClasses'; 
+import AdminPayments from './components/AdminPayments';
 import "./App.css";
 
 axios.defaults.baseURL = 'http://localhost:5207';
@@ -70,6 +71,7 @@ function App() {
             <Route path="/memberships" element={<MembershipList />} />
             <Route path="/members" element={<MembersList />} />
             <Route path="/classes" element={<AdminClasses />} />
+            <Route path="/payments" element={<AdminPayments />} />
             
             {/* Fallback route - redirects any unknown URL to Home */}
             <Route path="*" element={<Navigate to="/" />} />
