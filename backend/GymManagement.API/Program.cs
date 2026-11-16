@@ -72,6 +72,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICheckInService, CheckInService>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 
 // Configure CORS for the Vite React frontend
 builder.Services.AddCors(options =>

@@ -11,6 +11,8 @@ import ScannerScreen from './screens/ScannerScreen';
 import ClassesScreen from './screens/ClassesScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AttendanceHistoryScreen from './screens/AttendanceHistoryScreen';
+import BookAppointmentScreen from './screens/BookAppointmentScreen';
+import MyAppointmentsScreen from './screens/MyAppointmentsScreen';
 
 // Global Axios URL for Uni/Home Hotspot
 axios.defaults.baseURL = 'http://192.168.8.115:5207';
@@ -25,13 +27,19 @@ function MainTabs() {
             screenOptions={({ route }) => ({
                 tabBarIcon: ({ focused, color, size }) => {
                     let iconName;
+                    
+                    // Assign icons based on the route name
                     if (route.name === 'Classes') {
                         iconName = focused ? 'calendar' : 'calendar-outline';
                     } else if (route.name === 'Attendance') {
                         iconName = focused ? 'qr-code' : 'qr-code-outline';
                     } else if (route.name === 'Profile') {
                         iconName = focused ? 'person' : 'person-outline';
+                    } else if (route.name === 'MyAppointments') {
+                        // FIX: Added icon logic for MyAppointments
+                        iconName = focused ? 'time' : 'time-outline'; 
                     }
+                    
                     return <Ionicons name={iconName} size={size} color={color} />;
                 },
                 tabBarActiveTintColor: '#28a745',
@@ -44,6 +52,13 @@ function MainTabs() {
             <Tab.Screen name="Classes" component={ClassesScreen} options={{ title: 'Gym Classes' }} />
             <Tab.Screen name="Attendance" component={ScannerScreen} options={{ title: 'QR Check-in' }} />
             <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+            
+            {/* FIX: Changed <Stack.Screen> to <Tab.Screen> */}
+            <Tab.Screen 
+                name="MyAppointments" 
+                component={MyAppointmentsScreen} 
+                options={{ title: 'My Appointments' }} 
+            />
         </Tab.Navigator>
     );
 }
@@ -70,6 +85,17 @@ export default function App() {
                     options={{ 
                         headerShown: true, // Overrides the global false so users can click "Back"
                         title: 'Attendance History',
+                        headerStyle: { backgroundColor: '#1a1a1a' },
+                        headerTintColor: '#fff'
+                    }} 
+                />
+
+                <Stack.Screen 
+                    name="BookAppointment" 
+                    component={BookAppointmentScreen} 
+                    options={{ 
+                        headerShown: true, 
+                        title: 'Schedule Session',
                         headerStyle: { backgroundColor: '#1a1a1a' },
                         headerTintColor: '#fff'
                     }} 

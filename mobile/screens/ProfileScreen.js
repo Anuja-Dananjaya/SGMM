@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 
@@ -63,7 +63,12 @@ export default function ProfileScreen({ navigation }) {
     const isExpired = new Date(profile.endDate) < new Date();
 
     return (
-        <View style={styles.container}>
+        // Changed View to ScrollView here
+        <ScrollView 
+            style={styles.container} 
+            contentContainerStyle={{ paddingBottom: 40 }} // Adds space at the very bottom
+            showsVerticalScrollIndicator={false}
+        >
             <View style={styles.headerCard}>
                 <Text style={styles.nameText}>{profile.fullName}</Text>
                 <Text style={styles.emailText}>{profile.email}</Text>
@@ -94,7 +99,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
             </View>
 
-            {/* NEW BUTTON: View Attendance */}
+            {/* 1. BLUE BUTTON: View Attendance */}
             <TouchableOpacity 
                 style={[styles.logoutButton, { backgroundColor: '#007bff', marginBottom: 15 }]} 
                 onPress={() => navigation.navigate('AttendanceHistory')}
@@ -102,11 +107,25 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.logoutButtonText}>View Attendance History</Text>
             </TouchableOpacity>
 
-            {/* LOGOUT BUTTON */}
+            {/* 2. YELLOW BUTTON: Book Trainer */}
+            <TouchableOpacity 
+                style={[styles.logoutButton, { backgroundColor: '#ffc107', marginBottom: 15 }]} 
+                onPress={() => navigation.navigate('BookAppointment')}
+            >
+                <Text style={[styles.logoutButtonText, { color: '#000' }]}>Book Personal Trainer</Text>
+            </TouchableOpacity>
+
+            {/* 3. RED BUTTON: Log Out */}
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                 <Text style={styles.logoutButtonText}>Log Out</Text>
             </TouchableOpacity>
-        </View>
+
+            {/* NEW: Button to view appointments */}
+            <TouchableOpacity 
+                style={[styles.bookButton, { backgroundColor: '#17a2b8', marginTop: 10 }]} 
+                onPress={() => navigation.navigate('MyAppointments')}
+            ></TouchableOpacity>
+        </ScrollView>
     );
 }
 
