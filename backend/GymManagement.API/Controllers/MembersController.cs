@@ -46,7 +46,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Staff")]
+        [Authorize(Roles = "Admin,Staff,Trainer")]
         public async Task<ActionResult<IEnumerable<MemberResponseDto>>> GetAllMembers()
         {
             var members = await _memberService.GetAllMembersAsync();

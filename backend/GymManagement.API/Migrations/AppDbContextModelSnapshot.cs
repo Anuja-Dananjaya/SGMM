@@ -369,8 +369,7 @@ namespace GymManagement.API.Migrations
 
                     b.Property<string>("DayName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("WorkoutPlanId")
                         .HasColumnType("int");
@@ -392,14 +391,18 @@ namespace GymManagement.API.Migrations
 
                     b.Property<string>("ExerciseName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Reps")
                         .HasColumnType("int");
 
-                    b.Property<int>("RestTimeInSeconds")
-                        .HasColumnType("int");
+                    b.Property<string>("RestTime")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Sets")
                         .HasColumnType("int");
@@ -425,16 +428,19 @@ namespace GymManagement.API.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Goal")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int>("MemberId")
                         .HasColumnType("int");
 
-                    b.Property<string>("PlanName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("TrainerId")
                         .IsRequired()
@@ -664,7 +670,7 @@ namespace GymManagement.API.Migrations
             modelBuilder.Entity("GymManagement.API.Models.WorkoutExercise", b =>
                 {
                     b.HasOne("GymManagement.API.Models.WorkoutDay", "WorkoutDay")
-                        .WithMany("Exercises")
+                        .WithMany("WorkoutExercises")
                         .HasForeignKey("WorkoutDayId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -744,7 +750,7 @@ namespace GymManagement.API.Migrations
 
             modelBuilder.Entity("GymManagement.API.Models.WorkoutDay", b =>
                 {
-                    b.Navigation("Exercises");
+                    b.Navigation("WorkoutExercises");
                 });
 
             modelBuilder.Entity("GymManagement.API.Models.WorkoutPlan", b =>

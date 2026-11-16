@@ -13,6 +13,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import AttendanceHistoryScreen from './screens/AttendanceHistoryScreen';
 import BookAppointmentScreen from './screens/BookAppointmentScreen';
 import MyAppointmentsScreen from './screens/MyAppointmentsScreen';
+import MyWorkoutPlanScreen from './screens/MyWorkoutPlanScreen';
 
 // Global Axios URL for Uni/Home Hotspot
 axios.defaults.baseURL = 'http://192.168.8.115:5207';
@@ -37,8 +38,11 @@ function MainTabs() {
                         iconName = focused ? 'person' : 'person-outline';
                     } else if (route.name === 'MyAppointments') {
                         // FIX: Added icon logic for MyAppointments
-                        iconName = focused ? 'time' : 'time-outline'; 
+                        iconName = focused ? 'time' : 'time-outline';
+                    } else if (route.name === 'MyWorkoutPlans') {
+                        iconName = focused ? 'barbell' : 'barbell-outline';
                     }
+                    
                     
                     return <Ionicons name={iconName} size={size} color={color} />;
                 },
@@ -52,6 +56,7 @@ function MainTabs() {
             <Tab.Screen name="Classes" component={ClassesScreen} options={{ title: 'Gym Classes' }} />
             <Tab.Screen name="Attendance" component={ScannerScreen} options={{ title: 'QR Check-in' }} />
             <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+            <Tab.Screen name="MyWorkoutPlans" component={MyWorkoutPlanScreen} options={{ title: 'Workouts' }} />
             
             {/* FIX: Changed <Stack.Screen> to <Tab.Screen> */}
             <Tab.Screen 

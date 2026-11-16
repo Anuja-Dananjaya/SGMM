@@ -4,13 +4,18 @@ import axios from "axios";
 
 // Components
 import Navbar from "./components/Navbar";
-import MembershipList from "./components/MembershipList";
-import MembersList from "./components/MemberList";
-import Login from "./components/Login";
-import FrontDeskQR from "./components/FrontDeskQR";
-import AdminClasses from './components/AdminClasses'; 
-import AdminPayments from './components/AdminPayments';
-import TrainerSchedule from './components/TrainerSchedule';
+
+// Pages
+import MembershipList from "./pages/MembershipList";
+import MembersList from "./pages/MemberList";
+import Login from "./pages/Login";
+import FrontDeskQR from "./pages/FrontDeskQR";
+import AdminClasses from "./pages/AdminClasses";
+import AdminPayments from "./pages/AdminPayments";
+import TrainerSchedule from "./pages/TrainerSchedule";
+import CreateWorkoutPlan from "./pages/CreateWorkoutPlan";
+
+// Styles
 import "./App.css";
 
 axios.defaults.baseURL = 'http://localhost:5207';
@@ -82,7 +87,10 @@ function App() {
 
             {/* Trainer Routes */}
             {userRole === 'Trainer' && (
-                <Route path="/trainer/schedule" element={<TrainerSchedule />} />
+               <>
+                    <Route path="/trainer/schedule" element={<TrainerSchedule />} />
+                    <Route path="/trainer/workout-plans/create" element={<CreateWorkoutPlan />} />
+                </>
             )}
             
             {/* Fallback */}

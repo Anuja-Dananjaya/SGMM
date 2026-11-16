@@ -35,7 +35,10 @@ export default function Navbar({ userName, userRole, onLogout }) {
                 {/* TRAINER ONLY LINKS */}
                 {userRole === 'Trainer' && (
                     <>
+                       <>
                         <Link to="/trainer/schedule" style={getLinkStyle('/trainer/schedule')}>My Schedule</Link>
+                        <Link to="/trainer/workout-plans/create" style={getLinkStyle('/trainer/workout-plans/create')}>Create Plan</Link>
+                    </>
                     </>
                 )}
             </div>

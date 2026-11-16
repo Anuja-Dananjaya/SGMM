@@ -32,9 +32,10 @@ namespace GymManagement.API.Data
                 .HasForeignKey(wd => wd.WorkoutPlanId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // FIX: Removed the invalid .Exercises line and added .WithOne
             builder.Entity<WorkoutDay>()
-                .HasMany(wd => wd.Exercises)
-                .WithOne(we => we.WorkoutDay)
+                .HasMany(d => d.WorkoutExercises)
+                .WithOne(e => e.WorkoutDay)
                 .HasForeignKey(we => we.WorkoutDayId)
                 .OnDelete(DeleteBehavior.Cascade);
        }

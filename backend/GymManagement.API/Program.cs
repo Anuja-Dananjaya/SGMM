@@ -73,6 +73,7 @@ builder.Services.AddScoped<ICheckInService, CheckInService>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+builder.Services.AddScoped<IWorkoutPlanService, WorkoutPlanService>();
 
 // Configure CORS for the Vite React frontend
 builder.Services.AddCors(options =>
