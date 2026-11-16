@@ -55,18 +55,24 @@ function App() {
 
   return (
     <Router>
-      <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f6f8' }}>
+      <div className="app-shell">
         <Navbar userName={userName} userRole={userRole} onLogout={handleLogout} />
-        
-        <div style={{ flex: 1, marginLeft: '260px', padding: '30px' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+
+        <main className="main">
+          <div className="main-inner">
             <Routes>
               <Route path="/" element={
                 <div>
-                  <h1>{userRole} Dashboard</h1>
-                  <div style={{ padding: "10px", backgroundColor: status === "Healthy" ? "#28a745" : "#dc3545", color: "white", display: "inline-block", borderRadius: "4px" }}>
-                    API Status: {status}
+                  <div className="page-header">
+                    <div>
+                      <h1>Welcome back, {userName}</h1>
+                      <p>{userRole} dashboard</p>
+                    </div>
+                    <span className={`status-pill ${status === "Healthy" ? "status-ok" : status === "Checking..." ? "status-wait" : "status-bad"}`}>
+                      <span className="dot" /> API: {status}
+                    </span>
                   </div>
+                  <div className="card muted">Dashboard statistics are coming in a later step.</div>
                 </div>
               } />
 
@@ -103,7 +109,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>
-        </div>
+        </main>
       </div>
     </Router>
   );
