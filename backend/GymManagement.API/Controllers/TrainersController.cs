@@ -36,7 +36,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpPost("seed")]
-        [AllowAnonymous]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SeedTrainer([FromServices] RoleManager<IdentityRole> roleManager)
         {
             // 1. Create the "Trainer" role if it doesn't exist yet

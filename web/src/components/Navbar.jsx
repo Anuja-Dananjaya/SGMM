@@ -5,28 +5,43 @@ export default function Navbar({ userName, userRole, onLogout }) {
     const location = useLocation();
 
     const getLinkStyle = (path) => ({
-        color: location.pathname === path ? '#28a745' : '#fff',
+        color: location.pathname === path ? '#28a745' : '#ccc',
         textDecoration: 'none',
         fontWeight: 'bold',
-        padding: '10px'
+        padding: '12px 20px',
+        display: 'block',
+        backgroundColor: location.pathname === path ? '#2a2a2a' : 'transparent',
+        borderLeft: location.pathname === path ? '4px solid #28a745' : '4px solid transparent',
+        transition: 'all 0.2s ease-in-out'
     });
 
     return (
-        <nav style={styles.nav}>
+        <nav style={styles.sidebar}>
             <div style={styles.brand}>
-                {/* Dynamically display role type */}
-                <h2 style={{ margin: 0, color: '#fff' }}>SGMM {userRole}</h2>
+                <h2 style={{ margin: 0, color: '#fff', fontSize: '24px' }}>SGMM Portal</h2>
+                <span style={{ color: '#888', fontSize: '14px', marginTop: '5px' }}>{userRole} Portal</span>
             </div>
             
             <div style={styles.links}>
-                <Link to="/" style={getLinkStyle('/')}>Home</Link>
+                <Link to="/" style={getLinkStyle('/')}>Dashboard</Link>
                 
                 {/* ADMIN ONLY LINKS */}
                 {userRole === 'Admin' && (
                     <>
                         <Link to="/qr" style={getLinkStyle('/qr')}>Front Desk</Link>
                         <Link to="/memberships" style={getLinkStyle('/memberships')}>Memberships</Link>
-                        <Link to="/members" style={getLinkStyle('/members')}>Members</Link>
+                        <Link to="/members" style={getLinkStyle('/members')}>Manage Members</Link>
+                        <Link to="/add-member" style={getLinkStyle('/add-member')}>User Management</Link>
+                        <Link to="/classes" style={getLinkStyle('/classes')}>Classes</Link>
+                        <Link to="/payments" style={getLinkStyle('/payments')}>Payments</Link>
+                    </>
+                )}
+
+                {/* STAFF ONLY LINKS */}
+                {userRole === 'Staff' && (
+                    <>
+                        <Link to="/qr" style={getLinkStyle('/qr')}>Front Desk QR</Link>
+                        <Link to="/members" style={getLinkStyle('/members')}>View Members</Link>
                         <Link to="/classes" style={getLinkStyle('/classes')}>Classes</Link>
                         <Link to="/payments" style={getLinkStyle('/payments')}>Payments</Link>
                     </>
@@ -35,16 +50,22 @@ export default function Navbar({ userName, userRole, onLogout }) {
                 {/* TRAINER ONLY LINKS */}
                 {userRole === 'Trainer' && (
                     <>
-                       <>
                         <Link to="/trainer/schedule" style={getLinkStyle('/trainer/schedule')}>My Schedule</Link>
                         <Link to="/trainer/workout-plans/create" style={getLinkStyle('/trainer/workout-plans/create')}>Create Plan</Link>
-                    </>
                     </>
                 )}
             </div>
 
             <div style={styles.userSection}>
-                <span style={styles.userName}>Hi, {userName}</span>
+                <div style={styles.userInfo}>
+                    <div style={styles.avatar}>
+                        {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={styles.userName}>{userName}</span>
+                        <span style={styles.userRoleText}>{userRole}</span>
+                    </div>
+                </div>
                 <button onClick={onLogout} style={styles.logoutBtn}>Logout</button>
             </div>
         </nav>
@@ -52,27 +73,23 @@ export default function Navbar({ userName, userRole, onLogout }) {
 }
 
 const styles = {
-    nav: {
-        display: 'flex',
-        flexWrap: 'wrap', // FIX: Allows links to wrap to the next line instead of squishing
-        justifyContent: 'space-between',
-        alignItems: 'center',
+    sidebar: {
+        width: '260px',
         backgroundColor: '#1a1a1a',
-        padding: '15px 30px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-        gap: '15px' // FIX: Adds spacing between wrapped elements
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '2px 0 5px rgba(0,0,0,0.1)',
+        position: 'fixed',
+        left: 0,
+        top: 0
     },
-    brand: { display: 'flex', alignItems: 'center' },
-    links: { display: 'flex', flexWrap: 'wrap', gap: '15px' }, // FIX: Allows inner links to wrap cleanly
-    userSection: { display: 'flex', alignItems: 'center', gap: '15px' },
-    userName: { color: '#ccc' },
-    logoutBtn: { 
-        backgroundColor: '#dc3545', 
-        color: '#fff', 
-        border: 'none', 
-        padding: '8px 15px', 
-        borderRadius: '4px', 
-        cursor: 'pointer',
-        fontWeight: 'bold'
-    }
+    brand: { padding: '30px 20px', borderBottom: '1px solid #333', display: 'flex', flexDirection: 'column' },
+    links: { flex: 1, paddingTop: '20px', overflowY: 'auto' },
+    userSection: { padding: '20px', borderTop: '1px solid #333', backgroundColor: '#111' },
+    userInfo: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' },
+    avatar: { width: '40px', height: '40px', backgroundColor: '#28a745', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px' },
+    userName: { color: '#fff', fontWeight: 'bold', fontSize: '15px' },
+    userRoleText: { color: '#888', fontSize: '12px' },
+    logoutBtn: { width: '100%', backgroundColor: 'transparent', color: '#dc3545', border: '1px solid #dc3545', padding: '10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }
 };
