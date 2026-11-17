@@ -1,121 +1,239 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import AssignMemberForm from "./AssignMemberForm"; // NEW IMPORT
+import AssignMemberForm from "./AssignMemberForm";
+import EditMembershipForm from "./EditMembershipForm";
+
+const fmt = (d) => new Date(d).toLocaleDateString();
+const dateOnly = (d) => String(d).slice(0, 10);
+
+// Returns [from, to] as yyyy-mm-dd strings for the quick period presets (based on the membership start date).
+function presetRange(period) {
+    const today = new Date();
+    const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+    if (period === "week") {
+        const start = new Date(today);
+        start.setDate(today.getDate() - ((today.getDay() + 6) % 7)); // Monday
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        return [iso(start), iso(end)];
+    }
+    if (period === "month") {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        return [iso(start), iso(end)];
+    }
+    return ["", ""];
+}
 
 export default function MembersList() {
     const [members, setMembers] = useState([]);
     const [error, setError] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [memberToEdit, setMemberToEdit] = useState(null);
+
+    // Filters
+    const [search, setSearch] = useState("");
+    const [status, setStatus] = useState("all");      // all | active | inactive
+    const [period, setPeriod] = useState("all");      // all | week | month | custom
+    const [fromDate, setFromDate] = useState("");
+    const [toDate, setToDate] = useState("");
 
     const userRole = localStorage.getItem("userRole");
-    const isAdminOrStaff = userRole === "Admin" || userRole === "Staff";
+    const isAdmin = userRole === "Admin";
+    const isAdminOrStaff = isAdmin || userRole === "Staff";
 
-    useEffect(() => {
-        fetchMembers();
-    }, []);
+    useEffect(() => { fetchMembers(); }, []);
 
     const fetchMembers = () => {
-        const token = localStorage.getItem("token");
-
-        axios.get('/api/members', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
+        axios.get('/api/members', { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
             .then(response => setMembers(response.data))
             .catch(err => {
                 console.error("Error fetching members:", err);
-                setError("Failed to load members.");
+                setError("Failed to load memberships.");
             });
     };
 
-    const handleCancel = (id) => {
+    const handleCancelPlan = (id) => {
         if (!window.confirm("Are you sure you want to cancel this membership?")) return;
-
-        const token = localStorage.getItem("token");
-
-        axios.put(`/api/members/${id}/cancel`, {}, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-            .then(() => fetchMembers()) // Refresh to show it as Expired
-            .catch(() => alert("Failed to cancel membership."));
+        axios.put(`/api/members/${id}/cancel`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
+            .then(() => fetchMembers())
+            .catch(() => setError("Failed to cancel membership."));
     };
 
     const handleSaveSuccess = () => {
         setIsFormOpen(false);
-        fetchMembers(); // Refresh the table automatically!
+        setMemberToEdit(null);
+        fetchMembers();
     };
 
+    const handlePeriodChange = (value) => {
+        setPeriod(value);
+        if (value === "week" || value === "month") {
+            const [from, to] = presetRange(value);
+            setFromDate(from);
+            setToDate(to);
+        } else if (value === "all") {
+            setFromDate("");
+            setToDate("");
+        }
+    };
+
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return members.filter(m => {
+            if (q && !(
+                m.fullName?.toLowerCase().includes(q) ||
+                m.email?.toLowerCase().includes(q) ||
+                m.planName?.toLowerCase().includes(q)
+            )) return false;
+
+            if (status === "active" && !m.isActive) return false;
+            if (status === "inactive" && m.isActive) return false;
+
+            const start = dateOnly(m.startDate);
+            if (fromDate && start < fromDate) return false;
+            if (toDate && start > toDate) return false;
+            return true;
+        });
+    }, [members, search, status, fromDate, toDate]);
+
+    const hasFilters = search || status !== "all" || period !== "all" || fromDate || toDate;
+    const resetFilters = () => {
+        setSearch(""); setStatus("all"); setPeriod("all"); setFromDate(""); setToDate("");
+    };
+
+    const showTable = !isFormOpen && !memberToEdit;
+
     return (
-        <div style={{ marginTop: "2rem", padding: "1rem", border: "1px solid #444", borderRadius: "8px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                <h2>Gym Members Directory</h2>
-                {isAdminOrStaff && !isFormOpen && (
-                    <button onClick={() => setIsFormOpen(true)} style={{ backgroundColor: "#28a745", color: "white", padding: "0.5rem 1rem", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-                        + Assign Membership
-                    </button>
+        <div className="stack">
+            <div className="page-header">
+                <div>
+                    <h1>Assign Memberships</h1>
+                    <p>Assign membership plans to members and track their status.</p>
+                </div>
+                {isAdminOrStaff && showTable && (
+                    <button className="btn" onClick={() => { setError(null); setIsFormOpen(true); }}>+ Assign Membership</button>
                 )}
             </div>
 
-            {error && <p style={{ color: "red" }}>{error}</p>}
+            {error && <div className="alert alert-error">{error}</div>}
 
-            {/* Show the assignment form if the button was clicked */}
             {isFormOpen && (
-                <AssignMemberForm
+                <AssignMemberForm onSave={handleSaveSuccess} onCancel={() => setIsFormOpen(false)} />
+            )}
+
+            {memberToEdit && (
+                <EditMembershipForm
+                    member={memberToEdit}
                     onSave={handleSaveSuccess}
-                    onCancel={() => setIsFormOpen(false)}
+                    onCancel={() => setMemberToEdit(null)}
                 />
             )}
 
-            {!isFormOpen && members.length === 0 && !error ? (
-                <p>No members have been assigned plans yet.</p>
-            ) : (
-                !isFormOpen && (
-                    <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                        <thead>
-                            <tr style={{ borderBottom: "1px solid #666" }}>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Plan</th>
-                                <th>Start Date</th>
-                                <th>End Date</th>
-                                <th>Status</th>
-                                {isAdminOrStaff && <th>Actions</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {members.map(member => (
-                                <tr key={member.id} style={{ borderBottom: "1px solid #333" }}>
-                                    <td style={{ padding: "0.5rem 0" }}>{member.fullName}</td>
-                                    <td>{member.email}</td>
-                                    <td>{member.planName}</td>
-                                    <td>{new Date(member.startDate).toLocaleDateString()}</td>
-                                    <td>{new Date(member.endDate).toLocaleDateString()}</td>
-                                    <td>
-                                        <span style={{
-                                            padding: "4px 8px",
-                                            borderRadius: "4px",
-                                            backgroundColor: member.isActive ? "#28a745" : "#dc3545",
-                                            color: "white",
-                                            fontSize: "0.85rem"
-                                        }}>
-                                            {member.isActive ? "Active" : "Expired"}
-                                        </span>
-                                    </td>
-                                    {isAdminOrStaff && (
-                                        <td>
-                                            {member.isActive && (
-                                                <button
-                                                    onClick={() => handleCancel(member.id)}
-                                                    style={{ backgroundColor: "#ffc107", color: "black", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}>
-                                                    Cancel Plan
-                                                </button>
-                                            )}
-                                        </td>
-                                    )}
+            {showTable && (
+                <>
+                    <div className="card filters">
+                        <div className="field filter-search">
+                            <label>Search</label>
+                            <input
+                                type="text"
+                                placeholder="Name, email or plan..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="field">
+                            <label>Status</label>
+                            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                                <option value="all">All</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div className="field">
+                            <label>Started</label>
+                            <select value={period} onChange={(e) => handlePeriodChange(e.target.value)}>
+                                <option value="all">Any time</option>
+                                <option value="week">This week</option>
+                                <option value="month">This month</option>
+                                <option value="custom">Custom range</option>
+                            </select>
+                        </div>
+                        <div className="field">
+                            <label>From</label>
+                            <input
+                                type="date"
+                                value={fromDate}
+                                onChange={(e) => { setFromDate(e.target.value); setPeriod("custom"); }}
+                            />
+                        </div>
+                        <div className="field">
+                            <label>To</label>
+                            <input
+                                type="date"
+                                value={toDate}
+                                onChange={(e) => { setToDate(e.target.value); setPeriod("custom"); }}
+                            />
+                        </div>
+                        {hasFilters && (
+                            <button className="btn btn-outline" onClick={resetFilters}>Clear</button>
+                        )}
+                    </div>
+
+                    <div className="muted">Showing {filtered.length} of {members.length} memberships</div>
+
+                    <div className="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Plan</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Status</th>
+                                    {isAdminOrStaff && <th style={{ width: 170 }}>Actions</th>}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )
+                            </thead>
+                            <tbody>
+                                {filtered.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={isAdminOrStaff ? 6 : 5} className="empty">
+                                            {members.length === 0 ? "No memberships have been assigned yet." : "No memberships match your filters."}
+                                        </td>
+                                    </tr>
+                                ) : filtered.map(member => (
+                                    <tr key={member.id}>
+                                        <td>
+                                            <strong>{member.fullName}</strong>
+                                            <div className="muted" style={{ fontSize: 13 }}>{member.email}</div>
+                                        </td>
+                                        <td>{member.planName}</td>
+                                        <td>{fmt(member.startDate)}</td>
+                                        <td>{fmt(member.endDate)}</td>
+                                        <td>
+                                            <span className={`badge ${member.isActive ? "badge-success" : "badge-danger"}`}>
+                                                {member.isActive ? "Active" : "Inactive"}
+                                            </span>
+                                        </td>
+                                        {isAdminOrStaff && (
+                                            <td>
+                                                <div className="toolbar">
+                                                    {isAdmin && (
+                                                        <button className="btn btn-outline btn-sm" onClick={() => { setError(null); setMemberToEdit(member); }}>Edit</button>
+                                                    )}
+                                                    {member.isActive && (
+                                                        <button className="btn btn-danger btn-sm" onClick={() => handleCancelPlan(member.id)}>Cancel Plan</button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
             )}
         </div>
     );

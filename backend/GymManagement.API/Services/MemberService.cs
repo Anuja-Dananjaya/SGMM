@@ -46,6 +46,7 @@ namespace GymManagement.API.Services
                 UserId = user.Id,
                 FullName = user.FullName,
                 Email = user.Email!,
+                MembershipPlanId = plan.Id,
                 PlanName = plan.Name,
                 StartDate = member.StartDate,
                 EndDate = member.EndDate,
@@ -65,6 +66,7 @@ namespace GymManagement.API.Services
                     UserId = m.UserId,
                     FullName = m.User.FullName,
                     Email = m.User.Email!,
+                    MembershipPlanId = m.MembershipPlanId,
                     PlanName = m.MembershipPlan.Name,
                     StartDate = m.StartDate,
                     EndDate = m.EndDate,
@@ -88,6 +90,25 @@ namespace GymManagement.API.Services
             return true;
         }
 
+
+        public async Task<(bool Success, string Message)> UpdateMembershipAsync(int memberId, UpdateMembershipDto dto)
+        {
+            var member = await _context.Members.FindAsync(memberId);
+            if (member == null) return (false, "Membership record not found.");
+
+            var plan = await _context.MembershipPlans.FindAsync(dto.MembershipPlanId);
+            if (plan == null) return (false, "Membership plan not found.");
+
+            if (dto.EndDate <= dto.StartDate) return (false, "End date must be after the start date.");
+
+            member.MembershipPlanId = dto.MembershipPlanId;
+            member.StartDate = dto.StartDate;
+            member.EndDate = dto.EndDate;
+            member.IsActive = dto.IsActive;
+
+            await _context.SaveChangesAsync();
+            return (true, "Membership updated successfully.");
+        }
 
         public async Task<MemberProfileDto?> GetMemberProfileAsync(string userId)
         {

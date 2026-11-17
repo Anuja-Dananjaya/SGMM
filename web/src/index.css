@@ -135,3 +135,8 @@ tbody tr:hover { background: var(--surface-2); }
 .alert-error { background: var(--danger-soft); color: var(--danger); }
 
 td.empty { text-align: center; padding: 32px; color: var(--text-muted); }
+
+/* ---------- Filter bar ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 20px; }
+.filters .field { min-width: 140px; }
+.filters .filter-search { flex: 1 1 220px; }

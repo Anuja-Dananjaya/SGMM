@@ -53,6 +53,16 @@ namespace GymManagement.API.Controllers
             return Ok(members);
         }
 
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateMembership(int id, [FromBody] UpdateMembershipDto dto)
+        {
+            var (success, message) = await _memberService.UpdateMembershipAsync(id, dto);
+            if (!success) return BadRequest(new { message });
+
+            return Ok(new { message });
+        }
+
         [HttpPut("{id}/cancel")]
         [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> CancelMembership(int id)

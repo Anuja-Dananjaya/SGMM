@@ -10,6 +10,7 @@ namespace GymManagement.API.Services
         Task<MemberResponseDto?> AssignMembershipAsync(AssignMembershipDto dto);
         Task<IEnumerable<MemberResponseDto>> GetAllMembersAsync();
         Task<bool> CancelMembershipAsync(int memberId);
+        Task<(bool Success, string Message)> UpdateMembershipAsync(int memberId, UpdateMembershipDto dto);
         Task<MemberProfileDto?> GetMemberProfileAsync(string userId);
     }
 }
