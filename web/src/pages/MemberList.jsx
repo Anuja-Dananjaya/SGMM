@@ -6,6 +6,18 @@ import EditMembershipForm from "./EditMembershipForm";
 const fmt = (d) => new Date(d).toLocaleDateString();
 const dateOnly = (d) => String(d).slice(0, 10);
 
+const EXPIRING_DAYS = 7;
+
+// Whole days left until the membership ends (negative if already ended).
+const daysLeft = (endDate) => Math.ceil((new Date(endDate) - new Date()) / 86400000);
+
+// "active" | "expiring" | "inactive"
+const membershipState = (m) => {
+    if (!m.isActive) return "inactive";
+    const left = daysLeft(m.endDate);
+    return left >= 0 && left <= EXPIRING_DAYS ? "expiring" : "active";
+};
+
 // Returns [from, to] as yyyy-mm-dd strings for the quick period presets (based on the membership start date).
 function presetRange(period) {
     const today = new Date();
@@ -29,6 +41,7 @@ function presetRange(period) {
 export default function MembersList() {
     const [members, setMembers] = useState([]);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [memberToEdit, setMemberToEdit] = useState(null);
 
@@ -56,9 +69,22 @@ export default function MembersList() {
 
     const handleCancelPlan = (id) => {
         if (!window.confirm("Are you sure you want to cancel this membership?")) return;
+        setSuccess(null);
         axios.put(`/api/members/${id}/cancel`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
             .then(() => fetchMembers())
             .catch(() => setError("Failed to cancel membership."));
+    };
+
+    const handleRenew = (member) => {
+        if (!window.confirm(`Renew ${member.fullName}'s ${member.planName} membership?`)) return;
+        setError(null);
+        setSuccess(null);
+        axios.put(`/api/members/${member.id}/renew`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
+            .then(res => {
+                setSuccess(`${member.fullName}: ${res.data.message}`);
+                fetchMembers();
+            })
+            .catch(() => setError("Failed to renew membership."));
     };
 
     const handleSaveSuccess = () => {
@@ -88,8 +114,7 @@ export default function MembersList() {
                 m.planName?.toLowerCase().includes(q)
             )) return false;
 
-            if (status === "active" && !m.isActive) return false;
-            if (status === "inactive" && m.isActive) return false;
+            if (status !== "all" && membershipState(m) !== status) return false;
 
             const start = dateOnly(m.startDate);
             if (fromDate && start < fromDate) return false;
@@ -118,6 +143,7 @@ export default function MembersList() {
             </div>
 
             {error && <div className="alert alert-error">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
 
             {isFormOpen && (
                 <AssignMemberForm onSave={handleSaveSuccess} onCancel={() => setIsFormOpen(false)} />
@@ -148,6 +174,7 @@ export default function MembersList() {
                             <select value={status} onChange={(e) => setStatus(e.target.value)}>
                                 <option value="all">All</option>
                                 <option value="active">Active</option>
+                                <option value="expiring">Expiring soon ({EXPIRING_DAYS} days)</option>
                                 <option value="inactive">Inactive</option>
                             </select>
                         </div>
@@ -192,7 +219,7 @@ export default function MembersList() {
                                     <th>Start Date</th>
                                     <th>End Date</th>
                                     <th>Status</th>
-                                    {isAdminOrStaff && <th style={{ width: 170 }}>Actions</th>}
+                                    {isAdminOrStaff && <th style={{ width: 230 }}>Actions</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -212,13 +239,20 @@ export default function MembersList() {
                                         <td>{fmt(member.startDate)}</td>
                                         <td>{fmt(member.endDate)}</td>
                                         <td>
-                                            <span className={`badge ${member.isActive ? "badge-success" : "badge-danger"}`}>
-                                                {member.isActive ? "Active" : "Inactive"}
-                                            </span>
+                                            {(() => {
+                                                const state = membershipState(member);
+                                                if (state === "inactive") return <span className="badge badge-danger">Inactive</span>;
+                                                if (state === "expiring") {
+                                                    const left = daysLeft(member.endDate);
+                                                    return <span className="badge badge-warning">Expiring {left <= 0 ? "today" : `in ${left}d`}</span>;
+                                                }
+                                                return <span className="badge badge-success">Active</span>;
+                                            })()}
                                         </td>
                                         {isAdminOrStaff && (
                                             <td>
                                                 <div className="toolbar">
+                                                    <button className="btn btn-sm" onClick={() => handleRenew(member)}>Renew</button>
                                                     {isAdmin && (
                                                         <button className="btn btn-outline btn-sm" onClick={() => { setError(null); setMemberToEdit(member); }}>Edit</button>
                                                     )}

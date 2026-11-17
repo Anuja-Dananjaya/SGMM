@@ -63,6 +63,16 @@ namespace GymManagement.API.Controllers
             return Ok(new { message });
         }
 
+        [HttpPut("{id}/renew")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> RenewMembership(int id)
+        {
+            var (success, message) = await _memberService.RenewMembershipAsync(id);
+            if (!success) return NotFound(new { message });
+
+            return Ok(new { message });
+        }
+
         [HttpPut("{id}/cancel")]
         [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> CancelMembership(int id)

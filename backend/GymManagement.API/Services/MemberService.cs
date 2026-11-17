@@ -110,6 +110,28 @@ namespace GymManagement.API.Services
             return (true, "Membership updated successfully.");
         }
 
+        public async Task<(bool Success, string Message)> RenewMembershipAsync(int memberId)
+        {
+            var member = await _context.Members
+                .Include(m => m.MembershipPlan)
+                .FirstOrDefaultAsync(m => m.Id == memberId);
+            if (member == null) return (false, "Membership record not found.");
+
+            var now = DateTime.UtcNow;
+
+            // Still running: extend from the current end date so no paid days are lost.
+            // Already expired/cancelled: start a fresh period from today.
+            var stillRunning = member.IsActive && member.EndDate > now;
+            var baseDate = stillRunning ? member.EndDate : now;
+
+            if (!stillRunning) member.StartDate = now;
+            member.EndDate = baseDate.AddMonths(member.MembershipPlan.DurationInMonths);
+            member.IsActive = true;
+
+            await _context.SaveChangesAsync();
+            return (true, $"Membership renewed until {member.EndDate:d}.");
+        }
+
         public async Task<MemberProfileDto?> GetMemberProfileAsync(string userId)
         {
             var member = await _context.Members
