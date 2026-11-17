@@ -1,173 +1,386 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+
+const EMPTY_FORM = {
+    trainerId: '1',
+    className: '',
+    description: '',
+    classDate: '',
+    startTime: '',
+    endTime: '',
+    capacity: ''
+};
+
+const formatTimeSpan = (t) => (t && t.length === 5 ? `${t}:00` : t);
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
+const fmtTime = (t) => (t ? String(t).slice(0, 5) : '—');
 
 export default function AdminClasses() {
     const [classes, setClasses] = useState([]);
-    const [message, setMessage] = useState('');
-    const [formData, setFormData] = useState({
-        trainerId: '1', // Defaulting to our dummy trainer
-        className: '',
-        description: '',
-        classDate: '',
-        startTime: '',
-        endTime: '',
-        capacity: ''
+    const [loading, setLoading] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [search, setSearch] = useState('');
+    const [formData, setFormData] = useState(EMPTY_FORM);
+    const [message, setMessage] = useState(null); // { type: 'success' | 'error', text }
+
+    // Bookings panel state
+    const [selectedClass, setSelectedClass] = useState(null);
+    const [bookings, setBookings] = useState([]);
+    const [loadingBookings, setLoadingBookings] = useState(false);
+
+    const authConfig = () => ({
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     });
 
-    // 1. Fetch Classes on Component Mount
     useEffect(() => {
         fetchClasses();
     }, []);
 
     const fetchClasses = async () => {
         try {
-            const token = localStorage.getItem('token');
-            // Using the global baseURL configuration
-            const response = await axios.get('/api/Classes', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await axios.get('/api/Classes', authConfig());
             setClasses(response.data);
         } catch (error) {
-            console.error("Error fetching classes", error);
+            console.error('Error fetching classes:', error);
+            setMessage({ type: 'error', text: 'Failed to load classes.' });
         }
     };
 
-    // 2. Handle Form Input Changes
+    const fetchClassBookings = async (gymClass) => {
+        setSelectedClass(gymClass);
+        setLoadingBookings(true);
+        try {
+            const response = await axios.get(`/api/Classes/${gymClass.classId}/bookings`, authConfig());
+            setBookings(response.data);
+        } catch (error) {
+            console.error('Error fetching class bookings:', error);
+            setMessage({ type: 'error', text: 'Failed to load bookings for this class.' });
+        } finally {
+            setLoadingBookings(false);
+        }
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // 3. Submit New Class
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage('');
+        setMessage(null);
+        setLoading(true);
 
         try {
-            const token = localStorage.getItem('token');
-            
             const payload = {
-                trainerId: parseInt(formData.trainerId),
+                trainerId: parseInt(formData.trainerId, 10),
                 className: formData.className,
                 description: formData.description,
                 classDate: formData.classDate,
-                // Append :00 to satisfy C# TimeSpan requirement (HH:mm:ss)
-                startTime: formData.startTime + ':00',
-                endTime: formData.endTime + ':00',
-                capacity: parseInt(formData.capacity)
+                startTime: formatTimeSpan(formData.startTime),
+                endTime: formatTimeSpan(formData.endTime),
+                capacity: parseInt(formData.capacity, 10)
             };
 
-            // Using the global baseURL configuration
-            await axios.post('/api/Classes', payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            setMessage('Class created successfully!');
-            fetchClasses(); // Refresh the list
-            
-            // Clear form
-            setFormData({
-                trainerId: '1',
-                className: '',
-                description: '',
-                classDate: '',
-                startTime: '',
-                endTime: '',
-                capacity: ''
-            });
-
+            await axios.post('/api/Classes', payload, authConfig());
+            setMessage({ type: 'success', text: 'Class scheduled successfully.' });
+            setFormData(EMPTY_FORM);
+            setShowForm(false);
+            fetchClasses();
         } catch (error) {
-            console.error(error);
-            setMessage(error.response?.data?.message || 'Failed to create class.');
+            console.error('Error creating class:', error);
+            setMessage({
+                type: 'error',
+                text: error.response?.data?.message || error.response?.data?.Message || 'Failed to schedule class.'
+            });
+        } finally {
+            setLoading(false);
         }
     };
 
+    const handleCancelBooking = async (bookingId) => {
+        if (!window.confirm('Are you sure you want to cancel this member booking?')) return;
+        setMessage(null);
+        try {
+            await axios.put(`/api/Classes/bookings/${bookingId}/cancel`, {}, authConfig());
+            setMessage({ type: 'success', text: 'Booking cancelled successfully.' });
+            if (selectedClass) {
+                await fetchClassBookings(selectedClass);
+            }
+            await fetchClasses();
+        } catch (error) {
+            console.error('Error cancelling booking:', error);
+            setMessage({
+                type: 'error',
+                text: error.response?.data?.message || error.response?.data?.Message || 'Failed to cancel booking.'
+            });
+        }
+    };
+
+    const filteredClasses = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return classes;
+        return classes.filter(c =>
+            c.className?.toLowerCase().includes(q) ||
+            c.description?.toLowerCase().includes(q)
+        );
+    }, [classes, search]);
+
     return (
-        <div style={styles.container}>
-            <h1 style={styles.header}>Classes Management</h1>
-            
-            <div style={styles.grid}>
-                {/* LEFT COLUMN: Create Class Form */}
-                <div style={styles.card}>
-                    <h2>Create New Class</h2>
-                    {message && <p style={styles.message}>{message}</p>}
-                    
-                    <form onSubmit={handleSubmit} style={styles.form}>
-                        <label>Trainer ID</label>
-                        <input type="number" name="trainerId" value={formData.trainerId} onChange={handleChange} required style={styles.input} />
+        <div className="stack">
+            <div className="page-header">
+                <div>
+                    <h1>Classes & Bookings</h1>
+                    <p>Schedule gym classes and manage member bookings.</p>
+                </div>
+                <button
+                    className="btn"
+                    onClick={() => {
+                        setMessage(null);
+                        setShowForm(prev => !prev);
+                    }}
+                >
+                    {showForm ? 'Close Form' : '+ Schedule Class'}
+                </button>
+            </div>
 
-                        <label>Class Name</label>
-                        <input type="text" name="className" value={formData.className} onChange={handleChange} required style={styles.input} />
+            {message && (
+                <div className={`alert alert-${message.type}`}>{message.text}</div>
+            )}
 
-                        <label>Description</label>
-                        <input type="text" name="description" value={formData.description} onChange={handleChange} style={styles.input} />
-
-                        <label>Class Date</label>
-                        <input type="date" name="classDate" value={formData.classDate} onChange={handleChange} required style={styles.input} />
-
-                        <div style={styles.row}>
-                            <div style={styles.halfWidth}>
-                                <label>Start Time</label>
-                                <input type="time" name="startTime" value={formData.startTime} onChange={handleChange} required style={styles.input} />
-                            </div>
-                            <div style={styles.halfWidth}>
-                                <label>End Time</label>
-                                <input type="time" name="endTime" value={formData.endTime} onChange={handleChange} required style={styles.input} />
-                            </div>
+            {showForm && (
+                <div className="card">
+                    <h3>Schedule new class</h3>
+                    <form onSubmit={handleSubmit} className="form-grid">
+                        <div className="field">
+                            <label>Class Name</label>
+                            <input
+                                type="text"
+                                name="className"
+                                placeholder="e.g. Morning HIIT"
+                                value={formData.className}
+                                onChange={handleChange}
+                                required
+                            />
                         </div>
-
-                        <label>Capacity</label>
-                        <input type="number" name="capacity" value={formData.capacity} onChange={handleChange} required style={styles.input} />
-
-                        <button type="submit" style={styles.button}>Create Class</button>
+                        <div className="field">
+                            <label>Trainer ID</label>
+                            <input
+                                type="number"
+                                name="trainerId"
+                                min="1"
+                                value={formData.trainerId}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="field field-wide">
+                            <label>Description</label>
+                            <input
+                                type="text"
+                                name="description"
+                                placeholder="Optional class summary"
+                                value={formData.description}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div className="field">
+                            <label>Class Date</label>
+                            <input
+                                type="date"
+                                name="classDate"
+                                value={formData.classDate}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="field">
+                            <label>Capacity</label>
+                            <input
+                                type="number"
+                                name="capacity"
+                                min="1"
+                                placeholder="e.g. 20"
+                                value={formData.capacity}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="field">
+                            <label>Start Time</label>
+                            <input
+                                type="time"
+                                name="startTime"
+                                value={formData.startTime}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="field">
+                            <label>End Time</label>
+                            <input
+                                type="time"
+                                name="endTime"
+                                value={formData.endTime}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="form-actions">
+                            <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="btn" disabled={loading}>
+                                {loading ? 'Scheduling...' : 'Create Class'}
+                            </button>
+                        </div>
                     </form>
                 </div>
+            )}
 
-                {/* RIGHT COLUMN: Existing Classes List */}
-                <div style={styles.card}>
-                    <h2>Upcoming Classes</h2>
-                    <table style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>Name</th>
-                                <th style={styles.th}>Date</th>
-                                <th style={styles.th}>Time</th>
-                                <th style={styles.th}>Bookings</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {classes.map(c => (
-                                <tr key={c.classId}>
-                                    <td style={styles.td}>{c.className}</td>
-                                    <td style={styles.td}>{new Date(c.classDate).toLocaleDateString()}</td>
-                                    <td style={styles.td}>{c.startTime} - {c.endTime}</td>
-                                    <td style={styles.td}>{c.enrolledCount} / {c.capacity}</td>
-                                </tr>
-                            ))}
-                            {classes.length === 0 && (
-                                <tr>
-                                    <td colSpan="4" style={styles.td}>No classes scheduled yet.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+            <div className="card filters">
+                <div className="field filter-search">
+                    <label>Search Classes</label>
+                    <input
+                        type="text"
+                        placeholder="Search by class name or description..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
                 </div>
+                {search && (
+                    <button className="btn btn-outline" onClick={() => setSearch('')}>Clear</button>
+                )}
             </div>
+
+            <div className="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Class</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Capacity / Enrolled</th>
+                            <th>Status</th>
+                            <th style={{ width: 170 }}>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredClasses.length === 0 ? (
+                            <tr>
+                                <td colSpan="6" className="empty">
+                                    {classes.length === 0 ? 'No classes scheduled yet.' : 'No classes match your search.'}
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredClasses.map(c => {
+                                const isFull = c.enrolledCount >= c.capacity;
+                                return (
+                                    <tr key={c.classId}>
+                                        <td>
+                                            <strong>{c.className}</strong>
+                                            {c.description && (
+                                                <div className="muted" style={{ fontSize: 13 }}>{c.description}</div>
+                                            )}
+                                        </td>
+                                        <td>{fmtDate(c.classDate)}</td>
+                                        <td>{fmtTime(c.startTime)} – {fmtTime(c.endTime)}</td>
+                                        <td>
+                                            <span className={`badge ${isFull ? 'badge-danger' : 'badge-success'}`}>
+                                                {c.enrolledCount} / {c.capacity}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="badge badge-info">{c.status}</span>
+                                        </td>
+                                        <td>
+                                            <button
+                                                className="btn btn-outline btn-sm"
+                                                onClick={() => fetchClassBookings(c)}
+                                            >
+                                                View Bookings ({c.enrolledCount})
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {selectedClass && (
+                <div className="card stack">
+                    <div className="page-header" style={{ marginBottom: 0 }}>
+                        <div>
+                            <h3>Bookings — {selectedClass.className} ({fmtDate(selectedClass.classDate)})</h3>
+                            <p className="muted">
+                                {fmtTime(selectedClass.startTime)} – {fmtTime(selectedClass.endTime)}
+                            </p>
+                        </div>
+                        <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => {
+                                setSelectedClass(null);
+                                setBookings([]);
+                            }}
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    {loadingBookings ? (
+                        <p className="muted">Loading bookings...</p>
+                    ) : (
+                        <div className="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Member</th>
+                                        <th>Booked On</th>
+                                        <th>Status</th>
+                                        <th style={{ width: 150 }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bookings.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="4" className="empty">No bookings found for this class.</td>
+                                        </tr>
+                                    ) : (
+                                        bookings.map(b => (
+                                            <tr key={b.bookingId}>
+                                                <td>
+                                                    <strong>{b.memberName || 'Member'}</strong>
+                                                    {b.memberEmail && (
+                                                        <div className="muted" style={{ fontSize: 13 }}>{b.memberEmail}</div>
+                                                    )}
+                                                </td>
+                                                <td>{fmtDate(b.bookingDate)}</td>
+                                                <td>
+                                                    <span className={`badge ${b.status === 'Confirmed' ? 'badge-success' : 'badge-danger'}`}>
+                                                        {b.status}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {b.status === 'Confirmed' ? (
+                                                        <button
+                                                            className="btn btn-danger btn-sm"
+                                                            onClick={() => handleCancelBooking(b.bookingId)}
+                                                        >
+                                                            Cancel Booking
+                                                        </button>
+                                                    ) : (
+                                                        <span className="muted">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
-
-const styles = {
-    container: { padding: '20px', fontFamily: 'Arial, sans-serif' },
-    header: { color: '#333', borderBottom: '2px solid #28a745', paddingBottom: '10px' },
-    grid: { display: 'flex', gap: '20px', marginTop: '20px', flexWrap: 'wrap' },
-    card: { flex: 1, minWidth: '300px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' },
-    form: { display: 'flex', flexDirection: 'column', gap: '10px' },
-    row: { display: 'flex', gap: '10px' },
-    halfWidth: { flex: 1, display: 'flex', flexDirection: 'column' },
-    input: { padding: '8px', borderRadius: '4px', border: '1px solid #ccc' },
-    button: { padding: '10px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' },
-    message: { color: '#0056b3', backgroundColor: '#cce5ff', padding: '10px', borderRadius: '4px' },
-    table: { width: '100%', borderCollapse: 'collapse', marginTop: '10px' },
-    th: { textAlign: 'left', padding: '10px', borderBottom: '2px solid #ddd', backgroundColor: '#f8f9fa' },
-    td: { padding: '10px', borderBottom: '1px solid #ddd' }
-};

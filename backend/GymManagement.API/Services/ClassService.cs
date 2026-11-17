@@ -93,5 +93,88 @@ namespace GymManagement.API.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        private static bool IsCancellable(string bookingStatus, DateTime classDate, TimeSpan startTime)
+        {
+            return bookingStatus == "Confirmed" && classDate.Date + startTime > DateTime.Now;
+        }
+
+        public async Task<IEnumerable<ClassBookingDto>> GetMyBookingsAsync(string userId)
+        {
+            var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
+            if (member == null) return new List<ClassBookingDto>();
+
+            var rows = await _context.ClassBookings
+                .Where(b => b.MemberId == member.Id)
+                .Join(_context.GymClasses, b => b.ClassId, c => c.ClassId, (b, c) => new { b, c })
+                .OrderByDescending(x => x.c.ClassDate)
+                .ThenByDescending(x => x.c.StartTime)
+                .ToListAsync();
+
+            return rows.Select(x => new ClassBookingDto
+            {
+                BookingId = x.b.BookingId,
+                ClassId = x.c.ClassId,
+                ClassName = x.c.ClassName,
+                ClassDate = x.c.ClassDate,
+                StartTime = x.c.StartTime,
+                EndTime = x.c.EndTime,
+                BookingDate = x.b.BookingDate,
+                Status = x.b.Status,
+                CanCancel = IsCancellable(x.b.Status, x.c.ClassDate, x.c.StartTime)
+            }).ToList();
+        }
+
+        public async Task<IEnumerable<ClassBookingDto>> GetClassBookingsAsync(int classId)
+        {
+            var rows = await (
+                from b in _context.ClassBookings
+                where b.ClassId == classId
+                join c in _context.GymClasses on b.ClassId equals c.ClassId
+                join m in _context.Members on b.MemberId equals m.Id
+                join u in _context.Users on m.UserId equals u.Id
+                orderby b.BookingDate
+                select new { b, c, u }
+            ).ToListAsync();
+
+            return rows.Select(x => new ClassBookingDto
+            {
+                BookingId = x.b.BookingId,
+                ClassId = x.c.ClassId,
+                ClassName = x.c.ClassName,
+                ClassDate = x.c.ClassDate,
+                StartTime = x.c.StartTime,
+                EndTime = x.c.EndTime,
+                BookingDate = x.b.BookingDate,
+                Status = x.b.Status,
+                CanCancel = x.b.Status == "Confirmed",
+                MemberName = x.u.FullName,
+                MemberEmail = x.u.Email
+            }).ToList();
+        }
+
+        public async Task<(bool Success, string Message)> CancelBookingAsync(int bookingId, string userId, bool isStaff)
+        {
+            var booking = await _context.ClassBookings.FirstOrDefaultAsync(b => b.BookingId == bookingId);
+            if (booking == null) return (false, "Booking not found.");
+
+            var gymClass = await _context.GymClasses.FindAsync(booking.ClassId);
+            if (gymClass == null) return (false, "Class not found.");
+
+            if (booking.Status != "Confirmed") return (false, "This booking is already cancelled.");
+
+            if (!isStaff)
+            {
+                var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
+                if (member == null || booking.MemberId != member.Id) return (false, "Booking not found.");
+
+                if (!IsCancellable(booking.Status, gymClass.ClassDate, gymClass.StartTime))
+                    return (false, "This class has already started, so the booking can no longer be cancelled.");
+            }
+
+            booking.Status = "Cancelled";
+            await _context.SaveChangesAsync();
+            return (true, "Booking cancelled.");
+        }
     }
 }

@@ -17,6 +17,21 @@ namespace GymManagement.API.DTOs
         public int EnrolledCount { get; set; }
     }
 
+    public class ClassBookingDto
+    {
+        public int BookingId { get; set; }
+        public int ClassId { get; set; }
+        public string ClassName { get; set; } = string.Empty;
+        public DateTime ClassDate { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public DateTime BookingDate { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public bool CanCancel { get; set; }
+        public string? MemberName { get; set; }
+        public string? MemberEmail { get; set; }
+    }
+
     public class CreateGymClassDto
     {
         [Required] public int TrainerId { get; set; }

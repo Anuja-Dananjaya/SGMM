@@ -35,6 +35,37 @@ namespace GymManagement.API.Controllers
             return CreatedAtAction(nameof(GetAllClasses), new { id = createdClass.ClassId }, createdClass);
         }
 
+        [HttpGet("my-bookings")]
+        [Authorize(Roles = "Member")]
+        public async Task<IActionResult> GetMyBookings()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            return Ok(await _classService.GetMyBookingsAsync(userId));
+        }
+
+        [HttpGet("{classId}/bookings")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> GetClassBookings(int classId)
+        {
+            return Ok(await _classService.GetClassBookingsAsync(classId));
+        }
+
+        [HttpPut("bookings/{bookingId}/cancel")]
+        [Authorize(Roles = "Member,Admin,Staff")]
+        public async Task<IActionResult> CancelBooking(int bookingId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var isStaff = User.IsInRole("Admin") || User.IsInRole("Staff");
+            var (success, message) = await _classService.CancelBookingAsync(bookingId, userId, isStaff);
+            if (!success) return BadRequest(new { Message = message });
+
+            return Ok(new { Message = message });
+        }
+
         [HttpPost("{classId}/book")]
         [Authorize(Roles = "Member")]
         public async Task<IActionResult> BookClass(int classId)
