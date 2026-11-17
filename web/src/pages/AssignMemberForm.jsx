@@ -16,7 +16,7 @@ export default function AssignMemberForm({ onSave, onCancel }) {
 
         // 1. Fetch all registered users
         axios.get('/api/auth/users', { headers })
-            .then(response => setUsers(response.data))
+            .then(response => setUsers(response.data.filter(u => u.role === 'Member')))
             .catch(() => setError("Failed to load users."));
 
         // 2. Fetch all membership plans (public endpoint, no token needed)

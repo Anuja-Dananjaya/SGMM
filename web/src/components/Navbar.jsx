@@ -21,7 +21,7 @@ const ICONS = {
 };
 
 // One place to define the menu per role.
-// (Trainer is intentionally not a login role — the requirements define Admin, Staff and Member only.)
+// (Roles: Admin, Staff, Trainer, Member. Members use the mobile app.)
 const MENU = {
     Admin: [
         { section: 'Overview' },
@@ -41,10 +41,12 @@ const MENU = {
         { section: 'Gym Operations' },
         { to: '/qr', label: 'Front Desk QR', icon: 'qr' },
         { to: '/members', label: 'Members', icon: 'users' },
+        { to: '/add-member', label: 'Register Member', icon: 'userPlus' },
+        { to: '/memberships', label: 'Membership Plans', icon: 'card' },
         { to: '/classes', label: 'Classes', icon: 'calendar' },
         { to: '/payments', label: 'Payments', icon: 'money' },
     ],
-    // Legacy role still present in the database/backend; kept so existing accounts can still sign in.
+    // Trainer: gives workout plans and handles 1-to-1 sessions with members.
     Trainer: [
         { section: 'Overview' },
         { to: '/', label: 'Dashboard', icon: 'dashboard' },

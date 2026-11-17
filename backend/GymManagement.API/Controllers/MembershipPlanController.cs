@@ -34,7 +34,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<ActionResult<MembershipPlan>> PostMembershipPlan(MembershipPlan plan)
         {
             var createdPlan = await _service.CreatePlanAsync(plan);
@@ -42,7 +42,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> PutMembershipPlan(int id, MembershipPlan plan)
         {
             var success = await _service.UpdatePlanAsync(id, plan);
@@ -51,7 +51,7 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> DeleteMembershipPlan(int id)
         {
             var success = await _service.DeletePlanAsync(id);

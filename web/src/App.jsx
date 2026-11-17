@@ -92,9 +92,11 @@ function App() {
               {userRole === 'Staff' && (
                   <>
                       <Route path="/qr" element={<FrontDeskQR />} />
+                      <Route path="/memberships" element={<MembershipList />} />
                       <Route path="/members" element={<MembersList />} />
                       <Route path="/classes" element={<AdminClasses />} />
                       <Route path="/payments" element={<AdminPayments />} />
+                      <Route path="/add-member" element={<AddMember />} />
                   </>
               )}
 

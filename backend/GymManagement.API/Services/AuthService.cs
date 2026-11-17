@@ -37,7 +37,8 @@ namespace GymManagement.API.Services
             {
                 UserName = dto.Email,
                 Email = dto.Email,
-                FullName = dto.FullName
+                FullName = dto.FullName,
+                PhoneNumber = dto.Phone
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
@@ -94,15 +95,23 @@ namespace GymManagement.API.Services
 
         public async Task<IEnumerable<object>> GetAllUsersAsync()
         {
-            // LOCK: Only fetch users who are explicitly in the "Member" role
-            var members = await _userManager.GetUsersInRoleAsync("Member");
-            
-            return members.Select(u => new 
+            // Returns every user with their role and phone so the web UI can filter/display them.
+            var users = await _userManager.Users.OrderBy(u => u.FullName).ToListAsync();
+            var result = new List<object>();
+
+            foreach (var u in users)
             {
-                u.Id,
-                u.FullName,
-                u.Email
-            });
+                var roles = await _userManager.GetRolesAsync(u);
+                result.Add(new
+                {
+                    u.Id,
+                    u.FullName,
+                    u.Email,
+                    Phone = u.PhoneNumber,
+                    Role = roles.FirstOrDefault() ?? "Member"
+                });
+            }
+            return result;
         }
     } 
 }

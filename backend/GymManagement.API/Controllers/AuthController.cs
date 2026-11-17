@@ -48,11 +48,23 @@ namespace GymManagement.API.Controllers
 
         // NEW: The missing PUT endpoint that caused your 404 error!
         [HttpPut("users/{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserDto dto)
         {
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound(new { message = "User not found" });
+
+            // Allowed roles: Admin, Staff, Trainer, Member.
+            if (dto.Role != "Admin" && dto.Role != "Staff" && dto.Role != "Trainer" && dto.Role != "Member")
+                return BadRequest(new { message = "Role must be Admin, Staff, Trainer or Member." });
+
+            // Staff may only manage Member accounts (prevents privilege escalation).
+            if (User.IsInRole("Staff") && !User.IsInRole("Admin"))
+            {
+                var targetRoles = await _userManager.GetRolesAsync(user);
+                if (targetRoles.Any(r => r != "Member") || dto.Role != "Member")
+                    return Forbid();
+            }
 
             user.FullName = dto.FullName;
             user.Email = dto.Email;

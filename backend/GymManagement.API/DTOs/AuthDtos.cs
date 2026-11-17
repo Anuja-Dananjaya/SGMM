@@ -12,7 +12,9 @@ namespace GymManagement.API.Dtos
         
         [Required, MinLength(6)]
         public string Password { get; set; } = string.Empty;
-        
+
+        public string? Phone { get; set; }
+
         public string Role { get; set; } = "Member"; // Admin, Staff, or Member
     }
 
