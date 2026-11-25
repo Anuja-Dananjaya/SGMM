@@ -140,3 +140,35 @@ td.empty { text-align: center; padding: 32px; color: var(--text-muted); }
 .filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 20px; }
 .filters .field { min-width: 140px; }
 .filters .filter-search { flex: 1 1 220px; }
+
+/* ---------- Extended UI Helpers (Dashboard, Tabs, Bars, Print) ---------- */
+.two-col { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.tab-btn {
+  padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted); font-weight: 600; font-size: 14px;
+  transition: all .15s;
+}
+.tab-btn:hover { color: var(--text); background: var(--surface-2); }
+.tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.bar-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.bar-row:last-child { margin-bottom: 0; }
+.bar-meta { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
+.bar-track { height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; background: var(--primary); transition: width .3s ease; }
+
+.alert-info { background: var(--info-soft); color: var(--info); }
+
+.auth-shell {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14532d 100%);
+}
+.auth-card { width: 100%; max-width: 420px; background: var(--surface); border-radius: 16px; padding: 32px; box-shadow: 0 20px 45px rgba(0,0,0,.28); }
+
+@media print {
+  .sidebar, .topbar, .no-print { display: none !important; }
+  .main { margin-left: 0 !important; }
+  .main-inner { padding: 0 !important; max-width: 100% !important; }
+  body { background: #fff !important; }
+}

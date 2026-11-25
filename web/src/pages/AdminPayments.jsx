@@ -1,313 +1,303 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-export default function AdminPayments() {
-    const [members, setMembers] = useState([]);
-    const [payments, setPayments] = useState([]);
-    const [plans, setPlans] = useState([]);
-    const [activeTab, setActiveTab] = useState('overdue');
-    const [message, setMessage] = useState('');
+const SAMPLE_MEMBERS = [
+    { id: 1, fullName: 'Kasun Perera', planName: 'Platinum Annual', endDate: '2027-01-15', isActive: true },
+    { id: 2, fullName: 'Ishara Madushan', planName: 'Gold Monthly', endDate: '2026-10-10', isActive: false },
+    { id: 3, fullName: 'Nimal Perera', planName: 'Gold Monthly', endDate: '2026-11-12', isActive: false },
+    { id: 4, fullName: 'Tharushi Silva', planName: 'Student Plan', endDate: '2026-12-01', isActive: true },
+];
 
-    useEffect(() => {
-        console.log("MEMBER DATA RECEIVED:", members);
-        console.log("PLAN DATA RECEIVED:", plans);
-    }, [members, plans]);
+const SAMPLE_PLANS = [
+    { id: 1, name: 'Platinum Annual', price: 15000 },
+    { id: 2, name: 'Gold Monthly', price: 7500 },
+    { id: 3, name: 'Standard Monthly', price: 6500 },
+    { id: 4, name: 'Student Plan', price: 4500 },
+];
+
+const SAMPLE_PAYMENTS = [
+    { paymentId: 1042, memberId: 1, memberName: 'Kasun Perera', planName: 'Platinum Annual', paymentDate: '2026-11-15', amount: 15000, paymentMethod: 'Card', status: 'Completed' },
+    { paymentId: 1041, memberId: 4, memberName: 'Tharushi Silva', planName: 'Student Plan', paymentDate: '2026-11-14', amount: 4500, paymentMethod: 'Cash', status: 'Completed' },
+    { paymentId: 1040, memberId: 2, memberName: 'Ishara Madushan', planName: 'Gold Monthly', paymentDate: '2026-11-10', amount: 7500, paymentMethod: 'Cash', status: 'Pending' },
+    { paymentId: 1039, memberId: 3, memberName: 'Nimal Perera', planName: 'Gold Monthly', paymentDate: '2026-11-08', amount: 7500, paymentMethod: 'Bank Transfer', status: 'Completed' },
+];
+
+export default function AdminPayments() {
+    const [members, setMembers] = useState(SAMPLE_MEMBERS);
+    const [payments, setPayments] = useState(SAMPLE_PAYMENTS);
+    const [plans, setPlans] = useState(SAMPLE_PLANS);
+    const [activeTab, setActiveTab] = useState('overdue');
+    const [message, setMessage] = useState(null);
 
     const [paymentForm, setPaymentForm] = useState({
         memberId: '',
         amount: '',
-        paymentMethod: 'Cash'
+        paymentMethod: 'Cash',
+        status: 'Completed',
     });
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
 
     const fetchData = async () => {
+        const token = localStorage.getItem('token');
+        if (!token || token === 'demo-token') return;
+
         try {
-            const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
-            
             const [membersRes, paymentsRes, plansRes] = await Promise.all([
                 axios.get('/api/Members', { headers }),
                 axios.get('/api/Payments', { headers }),
                 axios.get('/api/MembershipPlans', { headers })
             ]);
-            
-            setMembers(membersRes.data);
-            setPayments(paymentsRes.data);
-            setPlans(plansRes.data);
+
+            if (membersRes.data?.length) setMembers(membersRes.data);
+            if (paymentsRes.data?.length) setPayments(paymentsRes.data);
+            if (plansRes.data?.length) setPlans(plansRes.data);
         } catch (error) {
-            console.error("Error fetching data", error);
+            console.error('Error fetching billing data:', error);
         }
     };
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const overdueMembers = members.filter(m => {
-        // Fallback for different casing from .NET
-        const endDateRaw = m.endDate || m.EndDate;
-        const endDate = endDateRaw ? new Date(endDateRaw) : new Date(0);
-        return endDate < today;
-    });
-
-    const paidMembers = members.filter(m => {
-        const endDateRaw = m.endDate || m.EndDate;
-        const endDate = endDateRaw ? new Date(endDateRaw) : new Date(0);
-        return endDate >= today;
-    });
+    const overdueMembers = members.filter(m => new Date(m.endDate || m.EndDate || 0) < today);
+    const paidMembers = members.filter(m => new Date(m.endDate || m.EndDate || 0) >= today);
 
     const handleMemberSelect = (selectedId) => {
-        // Find the selected member by their ID
-        const selectedMember = members.find(m => m.id.toString() === selectedId.toString());
-        
+        const selectedMember = members.find(m => String(m.id || m.Id) === String(selectedId));
         let amountDue = '';
-        if (selectedMember && selectedMember.planName) {
-            // Match the Member's planName with the Plan's name
+        if (selectedMember?.planName) {
             const memberPlan = plans.find(p => p.name === selectedMember.planName);
-            
-            if (memberPlan) {
-                amountDue = memberPlan.price || 0;
-            }
+            if (memberPlan) amountDue = memberPlan.price || 0;
         }
-
-        setPaymentForm({
-            ...paymentForm,
-            memberId: selectedId,
-            amount: amountDue
-        });
-        
+        setPaymentForm(prev => ({ ...prev, memberId: selectedId, amount: amountDue }));
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage('');
+        setMessage(null);
+
+        const token = localStorage.getItem('token');
+        const payload = {
+            memberId: parseInt(paymentForm.memberId, 10),
+            amount: parseFloat(paymentForm.amount),
+            paymentMethod: paymentForm.paymentMethod,
+        };
+
+        if (!token || token === 'demo-token') {
+            const m = members.find(x => String(x.id) === String(paymentForm.memberId));
+            setPayments(prev => [{
+                paymentId: Date.now(),
+                memberId: payload.memberId,
+                memberName: m?.fullName || `Member #${payload.memberId}`,
+                planName: m?.planName || 'Membership',
+                paymentDate: new Date().toISOString(),
+                amount: payload.amount,
+                paymentMethod: payload.paymentMethod,
+                status: paymentForm.status,
+            }, ...prev]);
+            setMessage({ type: 'success', text: `Payment recorded (${paymentForm.status}) for ${m?.fullName || 'member'}.` });
+            setPaymentForm({ memberId: '', amount: '', paymentMethod: 'Cash', status: 'Completed' });
+            return;
+        }
+
         try {
-            const token = localStorage.getItem('token');
-            const payload = {
-                memberId: parseInt(paymentForm.memberId),
-                amount: parseFloat(paymentForm.amount),
-                paymentMethod: paymentForm.paymentMethod
-            };
-
-            await axios.post('/api/Payments', payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            setMessage('Payment successful! Member active dates have been extended.');
-            setPaymentForm({ memberId: '', amount: '', paymentMethod: 'Cash' });
-            fetchData(); 
+            await axios.post('/api/Payments', payload, { headers: { Authorization: `Bearer ${token}` } });
+            setMessage({ type: 'success', text: 'Payment recorded successfully.' });
+            setPaymentForm({ memberId: '', amount: '', paymentMethod: 'Cash', status: 'Completed' });
+            fetchData();
         } catch (error) {
-            setMessage(error.response?.data?.message || 'Failed to record payment.');
+            setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to record payment.' });
         }
     };
 
+    const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount || p.Amount || 0), 0);
+    const pendingTotal = payments
+        .filter(p => (p.status || p.Status) === 'Pending')
+        .reduce((sum, p) => sum + Number(p.amount || p.Amount || 0), 0);
+
     return (
-        <div style={styles.container}>
-            <h1 style={styles.header}>Billing & Payments</h1>
-            
-            {/* TOP SECTION: Collect Payment Form (Horizontal Layout) */}
-            <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Record Payment</h2>
-                {message && <p style={styles.message}>{message}</p>}
-                
-                <form onSubmit={handleSubmit} style={styles.formRow}>
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Select Member</label>
-                        <select 
-                            name="memberId" 
-                            value={paymentForm.memberId} 
-                            onChange={(e) => handleMemberSelect(e.target.value)} 
-                            required 
-                            style={styles.input}
-                        >
+        <div className="stack">
+            <div className="page-header">
+                <div>
+                    <h1>Billing &amp; Payments</h1>
+                    <p>Record member payments, track overdue accounts, and review transaction history.</p>
+                </div>
+            </div>
+
+            <div className="card-grid">
+                <div className="card stat-card">
+                    <span className="stat-label">Recorded Revenue</span>
+                    <span className="stat-value">LKR {totalRevenue.toLocaleString()}</span>
+                    <div><span className="badge badge-success">Current cycle</span></div>
+                </div>
+                <div className="card stat-card">
+                    <span className="stat-label">Overdue / Pending Dues</span>
+                    <span className="stat-value">{overdueMembers.length} accounts</span>
+                    <div><span className="badge badge-danger">LKR {pendingTotal.toLocaleString()} pending</span></div>
+                </div>
+                <div className="card stat-card">
+                    <span className="stat-label">Completed Transactions</span>
+                    <span className="stat-value">{payments.filter(p => (p.status || 'Completed') === 'Completed').length}</span>
+                    <div><span className="badge badge-info">{paidMembers.length} active paid members</span></div>
+                </div>
+            </div>
+
+            <div className="card">
+                <h3>Record Member Payment</h3>
+                {message && <div className={`alert alert-${message.type}`} style={{ marginTop: 10 }}>{message.text}</div>}
+                <form onSubmit={handleSubmit} className="form-grid">
+                    <div className="field">
+                        <label>Member</label>
+                        <select value={paymentForm.memberId} onChange={e => handleMemberSelect(e.target.value)} required>
                             <option value="">-- Choose Member --</option>
                             {members.map(m => (
                                 <option key={m.id || m.Id} value={m.id || m.Id}>
-                                    ID: {m.id} - {m.fullName} - {m.firstName || m.FirstName} {m.lastName || m.LastName} 
+                                    {m.fullName} ({m.planName})
                                 </option>
                             ))}
                         </select>
                     </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Amount Due (LKR)</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            name="amount" 
-                            value={paymentForm.amount} 
-                            onChange={(e) => setPaymentForm({...paymentForm, amount: e.target.value})} 
-                            required 
-                            style={styles.input} 
+                    <div className="field">
+                        <label>Amount (LKR)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
                             placeholder="Auto-fills from plan..."
+                            value={paymentForm.amount}
+                            onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                            required
                         />
                     </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Payment Method</label>
-                        <select 
-                            name="paymentMethod" 
-                            value={paymentForm.paymentMethod} 
-                            onChange={(e) => setPaymentForm({...paymentForm, paymentMethod: e.target.value})} 
-                            style={styles.input}
-                        >
+                    <div className="field">
+                        <label>Payment Method</label>
+                        <select value={paymentForm.paymentMethod} onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}>
                             <option value="Cash">Cash</option>
                             <option value="Card">Card</option>
                             <option value="Bank Transfer">Bank Transfer</option>
                         </select>
                     </div>
-
-                    <div style={{ ...styles.formGroup, flex: '0 0 auto' }}>
-                        <button type="submit" style={styles.button}>Record Payment & Renew</button>
+                    <div className="field">
+                        <label>Payment Status</label>
+                        <select value={paymentForm.status} onChange={e => setPaymentForm({ ...paymentForm, status: e.target.value })}>
+                            <option value="Completed">Completed</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+                    <div className="form-actions">
+                        <button type="submit" className="btn">Record Payment</button>
                     </div>
                 </form>
             </div>
 
-            {/* BOTTOM SECTION: Full Width Tables */}
-            <div style={styles.section}>
-                <div style={styles.tabContainer}>
-                    <button 
-                        style={activeTab === 'overdue' ? styles.activeTab : styles.tab} 
-                        onClick={() => setActiveTab('overdue')}
-                    >
-                        Overdue ({overdueMembers.length})
-                    </button>
-                    <button 
-                        style={activeTab === 'paid' ? styles.activeTab : styles.tab} 
-                        onClick={() => setActiveTab('paid')}
-                    >
-                        Paid / Active ({paidMembers.length})
-                    </button>
-                    <button 
-                        style={activeTab === 'history' ? styles.activeTab : styles.tab} 
-                        onClick={() => setActiveTab('history')}
-                    >
-                        Transaction History
-                    </button>
-                </div>
-
-                {/* OVERDUE LIST */}
-                {activeTab === 'overdue' && (
-                    <table style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>ID</th>
-                                <th style={styles.th}>Name</th>
-                                <th style={styles.th}>Expired On</th>
-                                <th style={styles.th}>Amount Due</th>
-                                <th style={styles.th}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                                {overdueMembers.map(m => {
-                                    // Look up the exact price using the planName
-                                    const memberPlan = plans.find(p => p.name === m.planName);
-                                    const amountDue = memberPlan ? (memberPlan.price || 0) : 0;
-
-                                    return (
-                                        <tr key={m.id}>
-                                            <td style={styles.td}>{m.id}</td>
-                                            {/* Use fullName since firstName/lastName aren't in the DTO */}
-                                            <td style={styles.td}>{m.fullName}</td>
-                                            <td style={{...styles.td, color: '#dc3545', fontWeight: 'bold'}}>
-                                                {new Date(m.endDate || m.EndDate || 0).toLocaleDateString()}
-                                            </td>
-                                            <td style={{...styles.td, fontWeight: 'bold', color: '#333'}}>
-                                                LKR {amountDue}
-                                            </td>
-                                            <td style={styles.td}>
-                                                <button 
-                                                    style={styles.smallButton}
-                                                    onClick={() => handleMemberSelect(m.id)}
-                                                >
-                                                    Select to Pay
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                                {overdueMembers.length === 0 && (<tr><td colSpan="5" style={{...styles.td, textAlign: 'center', color: '#555'}}>No overdue members!</td></tr>)}
-                            </tbody>
-                    </table>
-                )}
-
-                {/* PAID LIST */}
-                {activeTab === 'paid' && (
-                    <table style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>ID</th>
-                                <th style={styles.th}>Name</th>
-                                <th style={styles.th}>Active Until</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paidMembers.map(m => (
-                                <tr key={m.id || m.Id}>
-                                    <td style={styles.td}>{m.id || m.Id}</td>
-                                    <td style={styles.td}>{m.fullName}</td>
-                                    <td style={{...styles.td, color: '#28a745', fontWeight: 'bold'}}>
-                                        {new Date(m.endDate || m.EndDate).toLocaleDateString()}
-                                    </td>
-                                </tr>
-                            ))}
-                            {paidMembers.length === 0 && (<tr><td colSpan="3" style={{...styles.td, textAlign: 'center', color: '#555'}}>No active paid members.</td></tr>)}
-                        </tbody>
-                    </table>
-                )}
-
-                {/* HISTORY LIST */}
-                {activeTab === 'history' && (
-                    <table style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>Date</th>
-                                <th style={styles.th}>Member ID</th>
-                                <th style={styles.th}>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {payments.map(p => (
-                                <tr key={p.paymentId || p.PaymentId}>
-                                    <td style={styles.td}>{new Date(p.paymentDate || p.PaymentDate).toLocaleDateString()}</td>
-                                    <td style={styles.td}>{p.memberId || p.MemberId}</td>
-                                    <td style={{...styles.td, color: '#333'}}>LKR {(p.amount || p.Amount).toFixed(2)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+            <div className="tabs">
+                <button className={`tab-btn ${activeTab === 'overdue' ? 'active' : ''}`} onClick={() => setActiveTab('overdue')}>
+                    Overdue / Pending ({overdueMembers.length})
+                </button>
+                <button className={`tab-btn ${activeTab === 'paid' ? 'active' : ''}`} onClick={() => setActiveTab('paid')}>
+                    Paid / Active ({paidMembers.length})
+                </button>
+                <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+                    Transaction History ({payments.length})
+                </button>
             </div>
+
+            {activeTab === 'overdue' && (
+                <div className="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Plan</th>
+                                <th>Expired On</th>
+                                <th>Amount Due</th>
+                                <th style={{ width: 150 }}>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {overdueMembers.length === 0 ? (
+                                <tr><td colSpan="5" className="empty">No overdue members.</td></tr>
+                            ) : overdueMembers.map(m => {
+                                const memberPlan = plans.find(p => p.name === m.planName);
+                                const amountDue = memberPlan ? memberPlan.price : 0;
+                                return (
+                                    <tr key={m.id}>
+                                        <td><strong>{m.fullName}</strong></td>
+                                        <td>{m.planName}</td>
+                                        <td><span className="badge badge-danger">{new Date(m.endDate || m.EndDate || 0).toLocaleDateString()}</span></td>
+                                        <td><strong>LKR {Number(amountDue).toLocaleString()}</strong></td>
+                                        <td>
+                                            <button className="btn btn-sm" onClick={() => handleMemberSelect(m.id)}>Select to Pay</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {activeTab === 'paid' && (
+                <div className="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Plan</th>
+                                <th>Active Until</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paidMembers.length === 0 ? (
+                                <tr><td colSpan="4" className="empty">No active paid members.</td></tr>
+                            ) : paidMembers.map(m => (
+                                <tr key={m.id || m.Id}>
+                                    <td><strong>{m.fullName}</strong></td>
+                                    <td>{m.planName}</td>
+                                    <td>{new Date(m.endDate || m.EndDate).toLocaleDateString()}</td>
+                                    <td><span className="badge badge-success">Paid / Active</span></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {activeTab === 'history' && (
+                <div className="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Member</th>
+                                <th>Method</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {payments.length === 0 ? (
+                                <tr><td colSpan="5" className="empty">No payment transactions recorded.</td></tr>
+                            ) : payments.map(p => {
+                                const st = p.status || p.Status || 'Completed';
+                                return (
+                                    <tr key={p.paymentId || p.PaymentId}>
+                                        <td>{new Date(p.paymentDate || p.PaymentDate).toLocaleDateString()}</td>
+                                        <td><strong>{p.memberName || `Member #${p.memberId || p.MemberId}`}</strong></td>
+                                        <td>{p.paymentMethod || p.PaymentMethod || 'Cash'}</td>
+                                        <td><strong>LKR {Number(p.amount || p.Amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong></td>
+                                        <td><span className={`badge ${st === 'Completed' ? 'badge-success' : 'badge-warning'}`}>{st}</span></td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }
-
-// Updated styles to override global dark mode CSS and fix layout
-const styles = {
-    container: { padding: '20px', fontFamily: 'Arial, sans-serif' },
-    header: { color: '#fff', borderBottom: '2px solid #28a745', paddingBottom: '10px', marginBottom: '20px' },
-    section: { backgroundColor: '#fff', padding: '25px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', marginBottom: '20px' },
-    sectionTitle: { color: '#333', marginTop: 0, marginBottom: '20px', fontSize: '22px' },
-    
-    // Form arranged horizontally
-    formRow: { display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' },
-    formGroup: { display: 'flex', flexDirection: 'column', flex: '1', minWidth: '200px' },
-    label: { color: '#333', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' },
-    
-    // Explicitly styled inputs to override global dark mode
-    input: { padding: '12px', borderRadius: '4px', border: '1px solid #aaa', fontSize: '16px', backgroundColor: '#fff', color: '#333', outline: 'none' },
-    button: { padding: '12px 20px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', height: '45px', transition: 'background-color 0.2s' },
-    smallButton: { padding: '8px 12px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' },
-    message: { color: '#155724', backgroundColor: '#d4edda', padding: '12px', borderRadius: '4px', border: '1px solid #c3e6cb', marginBottom: '15px' },
-    
-    tabContainer: { display: 'flex', borderBottom: '2px solid #ddd', marginBottom: '20px' },
-    tab: { flex: 1, padding: '12px', border: 'none', backgroundColor: '#f8f9fa', color: '#555', cursor: 'pointer', fontSize: '16px', fontWeight: '500' },
-    activeTab: { flex: 1, padding: '12px', border: 'none', backgroundColor: '#fff', color: '#28a745', borderBottom: '3px solid #28a745', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' },
-    
-    table: { width: '100%', borderCollapse: 'collapse' },
-    th: { textAlign: 'left', padding: '12px', borderBottom: '2px solid #ddd', backgroundColor: '#f8f9fa', color: '#333', fontWeight: 'bold' },
-    td: { padding: '12px', borderBottom: '1px solid #ddd', color: '#333' }
-};

@@ -19,7 +19,6 @@ namespace GymManagement.API.Services
 
         public async Task<(bool Success, string Message)> CreatePlanAsync(CreateWorkoutPlanDto dto, string trainerId)
         {
-            // 1. Create the main plan
             var plan = new WorkoutPlan
             {
                 MemberId = dto.MemberId,
@@ -42,7 +41,6 @@ namespace GymManagement.API.Services
                 }).ToList()
             };
 
-            // 2. EF Core is smart enough to save the Plan, Days, and Exercises all at once
             _context.WorkoutPlans.Add(plan);
             await _context.SaveChangesAsync();
 

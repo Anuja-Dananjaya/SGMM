@@ -18,6 +18,8 @@ const ICONS = {
     money: 'M12 1v22m5-18H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
     clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-14v4l3 2',
     dumbbell: 'M6 6v12M18 6v12M2 9v6M22 9v6M6 12h12',
+    bell: 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0',
+    chart: 'M18 20V10M12 20V4M6 20v-6',
 };
 
 // One place to define the menu per role.
@@ -26,25 +28,31 @@ const MENU = {
     Admin: [
         { section: 'Overview' },
         { to: '/', label: 'Dashboard', icon: 'dashboard' },
+        { to: '/reports', label: 'Reports', icon: 'chart' },
         { section: 'Gym Operations' },
         { to: '/qr', label: 'Front Desk QR', icon: 'qr' },
         { to: '/members', label: 'Assign Memberships', icon: 'users' },
         { to: '/memberships', label: 'Membership Plans', icon: 'card' },
         { to: '/classes', label: 'Classes', icon: 'calendar' },
+        { to: '/trainers', label: 'Trainers & Appointments', icon: 'clock' },
         { to: '/payments', label: 'Payments', icon: 'money' },
         { section: 'Administration' },
         { to: '/add-member', label: 'User Management', icon: 'userPlus' },
+        { to: '/notifications', label: 'Notifications', icon: 'bell' },
     ],
     Staff: [
         { section: 'Overview' },
         { to: '/', label: 'Dashboard', icon: 'dashboard' },
+        { to: '/reports', label: 'Reports', icon: 'chart' },
         { section: 'Gym Operations' },
         { to: '/qr', label: 'Front Desk QR', icon: 'qr' },
         { to: '/members', label: 'Assign Memberships', icon: 'users' },
         { to: '/add-member', label: 'Register Member', icon: 'userPlus' },
         { to: '/memberships', label: 'Membership Plans', icon: 'card' },
         { to: '/classes', label: 'Classes', icon: 'calendar' },
+        { to: '/trainers', label: 'Trainers & Appointments', icon: 'clock' },
         { to: '/payments', label: 'Payments', icon: 'money' },
+        { to: '/notifications', label: 'Notifications', icon: 'bell' },
     ],
     // Trainer: gives workout plans and handles 1-to-1 sessions with members.
     Trainer: [

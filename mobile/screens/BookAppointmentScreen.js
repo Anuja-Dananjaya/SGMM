@@ -5,6 +5,13 @@ import { Picker } from '@react-native-picker/picker';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 
+const SAMPLE_TRAINERS = [
+    { id: '', name: 'Select a Trainer...' },
+    { id: 't1', name: 'Coach Ruwan Bandara (Strength & HIIT)' },
+    { id: 't2', name: 'Coach Amaya Perera (Weight Loss & Nutrition)' },
+    { id: 't3', name: 'Coach Dilani Jayasinghe (Yoga & Rehab)' },
+];
+
 export default function BookAppointmentScreen({ navigation }) {
     const [trainers, setTrainers] = useState([]);
     const [selectedTrainer, setSelectedTrainer] = useState('');
@@ -18,20 +25,22 @@ export default function BookAppointmentScreen({ navigation }) {
         const loadTrainers = async () => {
             try {
                 const token = await SecureStore.getItemAsync('token');
-                
+                if (!token) {
+                    setTrainers(SAMPLE_TRAINERS);
+                    return;
+                }
+
                 const response = await axios.get('/api/Trainers', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
-                const loadedTrainers = [
-                    { id: '', name: 'Select a Trainer...' },
-                    ...response.data
-                ];
-                
-                setTrainers(loadedTrainers);
-            } catch (error) {
-                console.error("Error fetching trainers:", error);
-                Alert.alert('Error', 'Could not load trainers from the server.');
+                if (response.data?.length) {
+                    setTrainers([{ id: '', name: 'Select a Trainer...' }, ...response.data]);
+                } else {
+                    setTrainers(SAMPLE_TRAINERS);
+                }
+            } catch {
+                setTrainers(SAMPLE_TRAINERS);
             } finally {
                 setFetchingTrainers(false);
             }
