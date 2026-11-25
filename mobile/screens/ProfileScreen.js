@@ -1,83 +1,83 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
-
-const SAMPLE_PROFILE = {
-    fullName: 'Kasun Perera',
-    email: 'kasun@sgmm.lk',
-    phone: '077-4582910',
-    emergencyContact: 'Nimali Perera (071-8892310)',
-    planName: 'Platinum Plan',
-    startDate: '2026-01-15T00:00:00Z',
-    endDate: '2027-01-15T00:00:00Z',
-    qrCodeContent: 'SGMM-MBR-94827164-KASUN',
-    isActive: true,
-};
-
-const SAMPLE_HISTORY = [
-    { id: 1, plan: 'Platinum Plan', period: 'Jan 2026 – Jan 2027', status: 'Active' },
-    { id: 2, plan: 'Gold Plan', period: 'Jan 2025 – Dec 2025', status: 'Expired' },
-];
 
 export default function ProfileScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({
         fullName: '',
         phone: '',
-        emergencyContact: '',
     });
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    const applyProfile = (data) => {
-        const merged = {
-            ...SAMPLE_PROFILE,
-            ...data,
-            phone: data.phone || SAMPLE_PROFILE.phone,
-            emergencyContact: data.emergencyContact || SAMPLE_PROFILE.emergencyContact,
-            qrCodeContent: data.qrCodeContent || SAMPLE_PROFILE.qrCodeContent,
-        };
-        setProfile(merged);
-        setForm({
-            fullName: merged.fullName,
-            phone: merged.phone,
-            emergencyContact: merged.emergencyContact,
-        });
-    };
+    useFocusEffect(
+        useCallback(() => {
+            fetchProfile();
+        }, [])
+    );
 
     const fetchProfile = async () => {
+        setError('');
         try {
             const token = await SecureStore.getItemAsync('token');
             if (!token) {
-                applyProfile(SAMPLE_PROFILE);
+                setError('No authentication token found. Please log in again.');
+                setLoading(false);
                 return;
             }
 
             const response = await axios.get('/api/Members/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            applyProfile(response.data);
-        } catch {
-            applyProfile(SAMPLE_PROFILE);
+
+            const data = response.data;
+            setProfile(data);
+            setForm({
+                fullName: data.fullName || '',
+                phone: data.phone || '',
+            });
+        } catch (err) {
+            console.error('Error loading profile:', err);
+            const msg = err.response?.data?.message || err.response?.data?.Message || 'Failed to load profile. Ensure the backend is running and you have an assigned membership.';
+            setError(msg);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSaveProfile = () => {
-        setProfile(prev => ({
-            ...prev,
-            fullName: form.fullName,
-            phone: form.phone,
-            emergencyContact: form.emergencyContact,
-        }));
-        setEditing(false);
-        Alert.alert('Profile Updated', 'Your personal details have been saved.');
+    const handleSaveProfile = async () => {
+        if (!form.fullName.trim()) {
+            Alert.alert('Validation Error', 'Full name cannot be empty.');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const token = await SecureStore.getItemAsync('token');
+            await axios.put(
+                '/api/Members/me',
+                {
+                    fullName: form.fullName.trim(),
+                    phone: form.phone.trim(),
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            setEditing(false);
+            Alert.alert('Success', 'Your personal profile has been updated.');
+            fetchProfile();
+        } catch (err) {
+            console.error('Error updating profile:', err);
+            const msg = err.response?.data?.message || err.response?.data?.Message || 'Failed to update profile.';
+            Alert.alert('Update Failed', msg);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleLogout = async () => {
@@ -85,7 +85,7 @@ export default function ProfileScreen({ navigation }) {
         navigation.replace('Login');
     };
 
-    if (loading || !profile) {
+    if (loading) {
         return (
             <View style={styles.center}>
                 <ActivityIndicator size="large" color="#28a745" />
@@ -93,7 +93,22 @@ export default function ProfileScreen({ navigation }) {
         );
     }
 
-    const isExpired = new Date(profile.endDate) < new Date();
+    if (error || !profile) {
+        return (
+            <View style={styles.center}>
+                <Text style={styles.errorText}>{error || 'Profile not available.'}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={fetchProfile}>
+                    <Text style={styles.btnText}>Retry</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.retryBtn, { backgroundColor: '#dc3545', marginTop: 12 }]} onPress={handleLogout}>
+                    <Text style={styles.btnText}>Log Out</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const isActive = profile.isActive && new Date(profile.endDate) >= new Date();
+    const history = Array.isArray(profile.membershipHistory) ? profile.membershipHistory : [];
 
     return (
         <ScrollView
@@ -109,7 +124,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
                 <Text style={styles.nameText}>{profile.fullName}</Text>
                 <Text style={styles.emailText}>{profile.email}</Text>
-                <Text style={styles.phoneText}>{profile.phone}</Text>
+                <Text style={styles.phoneText}>{profile.phone || 'No phone number added'}</Text>
 
                 <TouchableOpacity style={styles.editToggle} onPress={() => setEditing(e => !e)}>
                     <Text style={styles.editToggleText}>{editing ? 'Cancel Edit' : 'Edit Personal Profile'}</Text>
@@ -124,6 +139,8 @@ export default function ProfileScreen({ navigation }) {
                     <TextInput
                         style={styles.input}
                         value={form.fullName}
+                        placeholder="Enter your full name"
+                        placeholderTextColor="#777"
                         onChangeText={v => setForm(f => ({ ...f, fullName: v }))}
                     />
 
@@ -131,19 +148,14 @@ export default function ProfileScreen({ navigation }) {
                     <TextInput
                         style={styles.input}
                         value={form.phone}
+                        placeholder="e.g. 077-1234567"
+                        placeholderTextColor="#777"
                         keyboardType="phone-pad"
                         onChangeText={v => setForm(f => ({ ...f, phone: v }))}
                     />
 
-                    <Text style={styles.inputLabel}>Emergency Contact</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={form.emergencyContact}
-                        onChangeText={v => setForm(f => ({ ...f, emergencyContact: v }))}
-                    />
-
-                    <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile}>
-                        <Text style={styles.btnText}>Save Changes</Text>
+                    <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSaveProfile} disabled={saving}>
+                        <Text style={styles.btnText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -160,48 +172,37 @@ export default function ProfileScreen({ navigation }) {
                 </View>
                 <View style={[styles.row, { borderBottomWidth: 0 }]}>
                     <Text style={styles.label}>Status</Text>
-                    <Text style={[styles.statusBadge, isExpired ? styles.statusExpired : styles.statusActive]}>
-                        {isExpired ? 'OVERDUE' : 'ACTIVE'}
+                    <Text style={[styles.statusBadge, isActive ? styles.statusActive : styles.statusExpired]}>
+                        {isActive ? 'ACTIVE' : 'EXPIRED'}
                     </Text>
                 </View>
             </View>
 
             <View style={styles.qrCard}>
-                <Text style={styles.qrTitle}>Member Access QR Code</Text>
-                <View style={styles.qrMatrix}>
-                    <View style={styles.qrRow}>
-                        <View style={styles.qrFinder} />
-                        <View style={styles.qrDots} />
-                        <View style={styles.qrFinder} />
-                    </View>
-                    <View style={styles.qrCenterRow}>
-                        <View style={styles.qrBlock} />
-                        <View style={[styles.qrBlock, { backgroundColor: '#28a745' }]} />
-                        <View style={styles.qrBlock} />
-                    </View>
-                    <View style={styles.qrRow}>
-                        <View style={styles.qrFinder} />
-                        <View style={styles.qrDots} />
-                        <View style={styles.qrBlock} />
-                    </View>
-                </View>
-                <Text style={styles.qrCodeId}>{profile.qrCodeContent.substring(0, 16)}</Text>
-                <Text style={styles.qrSubText}>Show at front desk or scan kiosk with Check-in tab</Text>
+                <Text style={styles.qrTitle}>Member Access ID</Text>
+                <Text style={styles.qrCodeId}>
+                    {profile.qrCodeContent ? profile.qrCodeContent.substring(0, 16) : 'N/A'}
+                </Text>
+                <Text style={styles.qrSubText}>Use the QR Check-in tab to scan the front-desk kiosk</Text>
             </View>
 
             <View style={styles.card}>
                 <Text style={styles.cardTitle}>Membership History</Text>
-                {SAMPLE_HISTORY.map((item, idx) => (
+                {history.length === 0 ? (
+                    <Text style={styles.historyPeriod}>No membership history found.</Text>
+                ) : history.map((item, idx) => (
                     <View
                         key={item.id}
-                        style={[styles.row, idx === SAMPLE_HISTORY.length - 1 && { borderBottomWidth: 0 }]}
+                        style={[styles.row, idx === history.length - 1 && { borderBottomWidth: 0 }]}
                     >
                         <View>
-                            <Text style={styles.value}>{item.plan}</Text>
-                            <Text style={styles.historyPeriod}>{item.period}</Text>
+                            <Text style={styles.value}>{item.planName}</Text>
+                            <Text style={styles.historyPeriod}>
+                                {new Date(item.startDate).toLocaleDateString()} – {new Date(item.endDate).toLocaleDateString()}
+                            </Text>
                         </View>
-                        <Text style={[styles.statusBadge, item.status === 'Active' ? styles.statusActive : styles.statusExpired]}>
-                            {item.status}
+                        <Text style={[styles.statusBadge, item.isActive ? styles.statusActive : styles.statusExpired]}>
+                            {item.isActive ? 'Active' : 'Expired'}
                         </Text>
                     </View>
                 ))}
@@ -247,7 +248,9 @@ export default function ProfileScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#121212', padding: 16 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 24 },
+    errorText: { color: '#f87171', fontSize: 15, textAlign: 'center', marginBottom: 16 },
+    retryBtn: { backgroundColor: '#28a745', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
     headerCard: { backgroundColor: '#1e1e1e', padding: 20, borderRadius: 12, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#2e2e2e' },
     avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#28a745', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
     avatarText: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
@@ -269,15 +272,9 @@ const styles = StyleSheet.create({
     statusActive: { backgroundColor: '#28a745' },
     statusExpired: { backgroundColor: '#dc3545' },
     qrCard: { backgroundColor: '#1e1e1e', padding: 18, borderRadius: 12, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#2e2e2e' },
-    qrTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12, color: '#fff' },
-    qrMatrix: { width: 132, height: 132, backgroundColor: '#fff', borderRadius: 10, padding: 12, justifyContent: 'space-between' },
-    qrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    qrCenterRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-    qrFinder: { width: 28, height: 28, borderWidth: 5, borderColor: '#111', borderRadius: 4 },
-    qrDots: { width: 22, height: 12, backgroundColor: '#111', borderRadius: 2 },
-    qrBlock: { width: 20, height: 20, backgroundColor: '#111', borderRadius: 3 },
-    qrCodeId: { color: '#28a745', fontWeight: 'bold', marginTop: 10, fontSize: 13 },
-    qrSubText: { color: '#888', fontSize: 12, marginTop: 4, textAlign: 'center' },
+    qrTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#fff' },
+    qrCodeId: { color: '#28a745', fontWeight: 'bold', fontSize: 15, letterSpacing: 1 },
+    qrSubText: { color: '#888', fontSize: 12, marginTop: 6, textAlign: 'center' },
     navButton: { padding: 14, borderRadius: 10, alignItems: 'center', marginBottom: 10 },
     btnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
 });

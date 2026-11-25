@@ -1,36 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 
-const SAMPLE_PAYMENTS = [
-    { paymentId: 1042, planName: 'Platinum Annual', paymentDate: '2026-11-15T10:00:00Z', amount: 15000, paymentMethod: 'Card', status: 'Completed' },
-    { paymentId: 1018, planName: 'Platinum Annual', paymentDate: '2026-10-15T09:30:00Z', amount: 15000, paymentMethod: 'Card', status: 'Completed' },
-    { paymentId: 994, planName: 'Gold Monthly', paymentDate: '2026-09-15T14:15:00Z', amount: 7500, paymentMethod: 'Cash', status: 'Completed' },
-    { paymentId: 961, planName: 'Gold Monthly', paymentDate: '2026-08-15T11:20:00Z', amount: 7500, paymentMethod: 'Bank Transfer', status: 'Completed' },
-];
-
 export default function MyPaymentsScreen() {
+    const [profile, setProfile] = useState(null);
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-    useEffect(() => {
-        fetchPayments();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchBillingData();
+        }, [])
+    );
 
-    const fetchPayments = async () => {
+    const fetchBillingData = async () => {
+        setError('');
         try {
             const token = await SecureStore.getItemAsync('token');
             if (!token) {
-                setPayments(SAMPLE_PAYMENTS);
+                setError('No authentication token found. Please log in again.');
                 return;
             }
-            const response = await axios.get('/api/Payments/my-history', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setPayments(response.data?.length ? response.data : SAMPLE_PAYMENTS);
-        } catch {
-            setPayments(SAMPLE_PAYMENTS);
+            const headers = { Authorization: `Bearer ${token}` };
+
+            const [profileRes, paymentsRes] = await Promise.all([
+                axios.get('/api/Members/me', { headers }),
+                axios.get('/api/Payments/my-history', { headers }),
+            ]);
+
+            setProfile(profileRes.data);
+            setPayments(Array.isArray(paymentsRes.data) ? paymentsRes.data : []);
+        } catch (err) {
+            console.error('Error loading payment history:', err);
+            const msg = err.response?.data?.message || err.response?.data?.Message || 'Failed to load payment history.';
+            setError(msg);
         } finally {
             setLoading(false);
         }
@@ -46,7 +52,7 @@ export default function MyPaymentsScreen() {
                 <View style={styles.rowBetween}>
                     <View>
                         <Text style={styles.planTitle}>{item.planName || 'Gym Membership'}</Text>
-                        <Text style={styles.metaText}>{dateStr} · {item.paymentMethod || 'Card'}</Text>
+                        <Text style={styles.metaText}>{dateStr} · {item.paymentMethod || 'Cash'}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.amountText}>
@@ -69,32 +75,49 @@ export default function MyPaymentsScreen() {
         );
     }
 
+    if (error) {
+        return (
+            <View style={styles.center}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={fetchBillingData}>
+                    <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const isActive = profile?.isActive && new Date(profile.endDate) >= new Date();
+
     return (
         <View style={styles.container}>
-            <View style={styles.summaryCard}>
-                <View style={styles.rowBetween}>
-                    <View>
-                        <Text style={styles.summaryLabel}>Current Membership &amp; Billing</Text>
-                        <Text style={styles.summaryPlan}>Platinum Plan</Text>
+            {profile && (
+                <View style={styles.summaryCard}>
+                    <View style={styles.rowBetween}>
+                        <View>
+                            <Text style={styles.summaryLabel}>Current Membership &amp; Billing</Text>
+                            <Text style={styles.summaryPlan}>{profile.planName}</Text>
+                        </View>
+                        <View style={[styles.badge, isActive ? styles.badgePaid : styles.badgeOverdue]}>
+                            <Text style={styles.badgeText}>{isActive ? 'ACTIVE' : 'OVERDUE'}</Text>
+                        </View>
                     </View>
-                    <View style={[styles.badge, styles.badgePaid]}>
-                        <Text style={styles.badgeText}>PAID</Text>
+                    <View style={styles.divider} />
+                    <View style={styles.rowBetween}>
+                        <View>
+                            <Text style={styles.summarySub}>Plan Fee</Text>
+                            <Text style={styles.summaryAmount}>
+                                LKR {Number(profile.planPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.summarySub}>Valid Until</Text>
+                            <Text style={styles.summaryDate}>{new Date(profile.endDate).toLocaleDateString()}</Text>
+                        </View>
                     </View>
                 </View>
-                <View style={styles.divider} />
-                <View style={styles.rowBetween}>
-                    <View>
-                        <Text style={styles.summarySub}>Monthly Fee</Text>
-                        <Text style={styles.summaryAmount}>LKR 15,000.00</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.summarySub}>Next Billing</Text>
-                        <Text style={styles.summaryDate}>15 Dec 2026</Text>
-                    </View>
-                </View>
-            </View>
+            )}
 
-            <Text style={styles.sectionTitle}>Payment History</Text>
+            <Text style={styles.sectionTitle}>Payment History ({payments.length})</Text>
 
             <FlatList
                 data={payments}
@@ -102,6 +125,11 @@ export default function MyPaymentsScreen() {
                 renderItem={renderPayment}
                 contentContainerStyle={{ paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                    <View style={styles.emptyBox}>
+                        <Text style={styles.emptyText}>No payments recorded for your account yet.</Text>
+                    </View>
+                }
             />
         </View>
     );
@@ -109,7 +137,10 @@ export default function MyPaymentsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#121212', padding: 16 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 24 },
+    errorText: { color: '#f87171', fontSize: 15, textAlign: 'center', marginBottom: 16 },
+    retryBtn: { backgroundColor: '#28a745', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+    retryText: { color: '#fff', fontWeight: 'bold' },
     summaryCard: {
         backgroundColor: '#1e1e1e',
         borderRadius: 12,
@@ -140,5 +171,8 @@ const styles = StyleSheet.create({
     badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 6 },
     badgePaid: { backgroundColor: '#28a745' },
     badgePending: { backgroundColor: '#d97706' },
+    badgeOverdue: { backgroundColor: '#dc3545' },
     badgeText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+    emptyBox: { backgroundColor: '#1e1e1e', padding: 24, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#2e2e2e' },
+    emptyText: { color: '#999', fontSize: 14, textAlign: 'center' },
 });

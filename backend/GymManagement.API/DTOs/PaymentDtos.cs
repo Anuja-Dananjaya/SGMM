@@ -11,6 +11,7 @@ namespace GymManagement.API.DTOs
         public DateTime PaymentDate { get; set; }
         public string PaymentMethod { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string? PlanName { get; set; }
     }
 
     public class CreatePaymentDto

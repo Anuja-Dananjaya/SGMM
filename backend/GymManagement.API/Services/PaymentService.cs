@@ -104,21 +104,31 @@ namespace GymManagement.API.Services
 
         public async Task<IEnumerable<PaymentDto>> GetMemberPaymentsAsync(string userId)
         {
-            var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
-            if (member == null) throw new InvalidOperationException("Member not found.");
+            var memberIds = await _context.Members
+                .Include(m => m.MembershipPlan)
+                .Where(m => m.UserId == userId)
+                .ToListAsync();
 
-            return await _context.Payments
-                .Where(p => p.MemberId == member.Id)
+            if (!memberIds.Any()) return new List<PaymentDto>();
+
+            var planByMemberId = memberIds.ToDictionary(m => m.Id, m => m.MembershipPlan?.Name ?? "Gym Membership");
+            var ids = planByMemberId.Keys.ToList();
+
+            var payments = await _context.Payments
+                .Where(p => ids.Contains(p.MemberId))
                 .OrderByDescending(p => p.PaymentDate)
-                .Select(p => new PaymentDto
-                {
-                    PaymentId = p.PaymentId,
-                    MemberId = p.MemberId,
-                    Amount = p.Amount,
-                    PaymentDate = p.PaymentDate,
-                    PaymentMethod = p.PaymentMethod,
-                    Status = p.Status
-                }).ToListAsync();
+                .ToListAsync();
+
+            return payments.Select(p => new PaymentDto
+            {
+                PaymentId = p.PaymentId,
+                MemberId = p.MemberId,
+                Amount = p.Amount,
+                PaymentDate = p.PaymentDate,
+                PaymentMethod = p.PaymentMethod,
+                Status = p.Status,
+                PlanName = planByMemberId.TryGetValue(p.MemberId, out var planName) ? planName : "Gym Membership"
+            }).ToList();
         }
     }
 }

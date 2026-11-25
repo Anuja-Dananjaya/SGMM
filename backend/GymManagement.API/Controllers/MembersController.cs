@@ -34,6 +34,19 @@ namespace GymManagement.API.Controllers
             return Ok(profile);
         }
 
+        [HttpPut("me")]
+        [Authorize(Roles = "Member")]
+        public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileDto dto)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var (success, message) = await _memberService.UpdateMyProfileAsync(userId, dto);
+            if (!success) return BadRequest(new { Message = message });
+
+            return Ok(new { Message = message });
+        }
+
         // Admin & Staff Endpoints
         [HttpPost("assign")]
         [Authorize(Roles = "Admin,Staff")]

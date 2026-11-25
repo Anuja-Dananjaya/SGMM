@@ -134,24 +134,56 @@ namespace GymManagement.API.Services
 
         public async Task<MemberProfileDto?> GetMemberProfileAsync(string userId)
         {
-            var member = await _context.Members
+            var records = await _context.Members
                 .Include(m => m.MembershipPlan)
-                .Include(m => m.User) 
-                .FirstOrDefaultAsync(m => m.UserId == userId);
+                .Include(m => m.User)
+                .Where(m => m.UserId == userId)
+                .OrderByDescending(m => m.EndDate)
+                .ToListAsync();
 
-            if (member == null) return null;
+            var latest = records.FirstOrDefault();
+            if (latest == null) return null;
+
+            var now = DateTime.UtcNow;
 
             return new MemberProfileDto
             {
-                Id = member.Id,
-                FullName = member.User.UserName ?? "Unknown",
-                Email = member.User.Email ?? "",
-                PlanName = member.MembershipPlan?.Name ?? "No Plan",
-                StartDate = member.StartDate,
-                EndDate = member.EndDate,
-                IsActive = member.IsActive,
-                QRCodeContent = member.QRCodeContent ?? ""
+                Id = latest.Id,
+                FullName = !string.IsNullOrWhiteSpace(latest.User.FullName)
+                    ? latest.User.FullName
+                    : (latest.User.UserName ?? "Unknown"),
+                Email = latest.User.Email ?? "",
+                Phone = latest.User.PhoneNumber ?? "",
+                PlanName = latest.MembershipPlan?.Name ?? "No Plan",
+                PlanPrice = latest.MembershipPlan?.Price ?? 0,
+                StartDate = latest.StartDate,
+                EndDate = latest.EndDate,
+                IsActive = latest.IsActive && latest.EndDate > now,
+                QRCodeContent = latest.QRCodeContent ?? "",
+                MembershipHistory = records.Select(r => new MembershipHistoryItemDto
+                {
+                    Id = r.Id,
+                    PlanName = r.MembershipPlan?.Name ?? "Unknown Plan",
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
+                    IsActive = r.IsActive && r.EndDate > now
+                }).ToList()
             };
+        }
+
+        public async Task<(bool Success, string Message)> UpdateMyProfileAsync(string userId, UpdateMyProfileDto dto)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return (false, "User account not found.");
+
+            if (string.IsNullOrWhiteSpace(dto.FullName))
+                return (false, "Full name is required.");
+
+            user.FullName = dto.FullName.Trim();
+            user.PhoneNumber = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim();
+
+            await _context.SaveChangesAsync();
+            return (true, "Profile updated successfully.");
         }
     }
 }

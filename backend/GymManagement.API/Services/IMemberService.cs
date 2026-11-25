@@ -13,5 +13,6 @@ namespace GymManagement.API.Services
         Task<(bool Success, string Message)> UpdateMembershipAsync(int memberId, UpdateMembershipDto dto);
         Task<(bool Success, string Message)> RenewMembershipAsync(int memberId);
         Task<MemberProfileDto?> GetMemberProfileAsync(string userId);
+        Task<(bool Success, string Message)> UpdateMyProfileAsync(string userId, UpdateMyProfileDto dto);
     }
 }
