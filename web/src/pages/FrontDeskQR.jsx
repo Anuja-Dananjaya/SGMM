@@ -1,98 +1,118 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 
-const SAMPLE_MEMBERS = [
-    { id: 1, fullName: "Kasun Perera", planName: "Platinum Annual", isActive: true },
-    { id: 2, fullName: "Nimal Perera", planName: "Gold Monthly", isActive: true },
-    { id: 3, fullName: "Tharushi Silva", planName: "Student Plan", isActive: true },
-    { id: 4, fullName: "Kavindi Silva", planName: "Platinum Annual", isActive: true },
-    { id: 5, fullName: "Ishara Madushan", planName: "Gold Monthly", isActive: false },
-];
-
-const INITIAL_ATTENDANCE = [
-    { id: 1, memberName: "Kasun Perera", plan: "Platinum Annual", time: "2026-11-18 06:42 AM", method: "QR Scan", status: "Active" },
-    { id: 2, memberName: "Tharushi Silva", plan: "Student Plan", time: "2026-11-18 07:15 AM", method: "QR Scan", status: "Active" },
-    { id: 3, memberName: "Nimal Perera", plan: "Gold Monthly", time: "2026-11-18 08:05 AM", method: "Manual (Staff)", status: "Active" },
-    { id: 4, memberName: "Kavindi Silva", plan: "Platinum Annual", time: "2026-11-18 09:20 AM", method: "QR Scan", status: "Active" },
-];
-
 export default function FrontDeskQR() {
-    const [qrData, setQrData] = useState({ qrCode: "SGMM-LIVE-CHECKIN-2026" });
-    const [isDemoQR, setIsDemoQR] = useState(false);
-    const [members, setMembers] = useState(SAMPLE_MEMBERS);
-    const [selectedMemberId, setSelectedMemberId] = useState("1");
-    const [attendance, setAttendance] = useState(INITIAL_ATTENDANCE);
+    const [qrData, setQrData] = useState(null);
+    const [qrError, setQrError] = useState(null);
+    const [members, setMembers] = useState([]);
+    const [selectedMemberId, setSelectedMemberId] = useState("");
+    const [attendance, setAttendance] = useState([]);
+    const [loadingLog, setLoadingLog] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+
+    // Attendance search & date range filters
     const [search, setSearch] = useState("");
-    const [notice, setNotice] = useState(null);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [notice, setNotice] = useState(null); // { type: 'success' | 'error', text }
+
+    const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
     const fetchQRCode = () => {
-        const token = localStorage.getItem("token");
-        if (!token || token === "demo-token") {
-            setIsDemoQR(true);
-            setQrData({ qrCode: `SGMM-LIVE-${new Date().getMinutes().toString().padStart(2, "0")}26` });
-            return;
-        }
-
-        axios.get('/api/checkin/active-qr', {
-            headers: { Authorization: `Bearer ${token}` }
-        })
+        axios.get('/api/checkin/active-qr', { headers: authHeaders() })
             .then(response => {
                 setQrData(response.data);
-                setIsDemoQR(false);
+                setQrError(null);
             })
-            .catch(() => {
-                setIsDemoQR(true);
-                setQrData({ qrCode: "SGMM-LIVE-CHECKIN-2026" });
+            .catch(err => {
+                console.error("Failed to fetch QR code:", err);
+                setQrError("Unable to load live Check-In QR code. Ensure the backend API is running.");
             });
+    };
+
+    const fetchMembers = () => {
+        axios.get('/api/members', { headers: authHeaders() })
+            .then(res => {
+                const list = Array.isArray(res.data) ? res.data : [];
+                setMembers(list);
+                if (list.length > 0 && !selectedMemberId) {
+                    setSelectedMemberId(String(list[0].id));
+                }
+            })
+            .catch(err => console.error("Failed to load members:", err));
+    };
+
+    const fetchAttendance = (filters = {}) => {
+        setLoadingLog(true);
+        const params = {};
+        if (filters.search ?? search) params.search = filters.search ?? search;
+        if (filters.startDate ?? startDate) params.startDate = filters.startDate ?? startDate;
+        if (filters.endDate ?? endDate) params.endDate = filters.endDate ?? endDate;
+
+        axios.get('/api/checkin/all', { headers: authHeaders(), params })
+            .then(res => setAttendance(Array.isArray(res.data) ? res.data : []))
+            .catch(err => {
+                console.error("Failed to load attendance log:", err);
+                setNotice({ type: "error", text: "Failed to load attendance records." });
+            })
+            .finally(() => setLoadingLog(false));
     };
 
     useEffect(() => {
         fetchQRCode();
+        fetchMembers();
+        fetchAttendance({});
+
         const intervalId = setInterval(fetchQRCode, 30000);
-
-        const token = localStorage.getItem("token");
-        if (token && token !== "demo-token") {
-            axios.get('/api/members', { headers: { Authorization: `Bearer ${token}` } })
-                .then(res => {
-                    if (Array.isArray(res.data) && res.data.length > 0) {
-                        setMembers(res.data);
-                        setSelectedMemberId(String(res.data[0].id));
-                    }
-                })
-                .catch(() => { /* keep sample members */ });
-        }
-
         return () => clearInterval(intervalId);
     }, []);
 
-    const handleManualCheckIn = (e) => {
+    const handleManualCheckIn = async (e) => {
         e.preventDefault();
-        const member = members.find(m => String(m.id) === String(selectedMemberId));
-        if (!member) return;
+        if (!selectedMemberId) return;
 
-        const timeText = new Date().toLocaleString([], { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-        const status = member.isActive ? "Active" : "Expired";
-        setAttendance(prev => [{
-            id: Date.now(),
-            memberName: member.fullName,
-            plan: member.planName || "Standard",
-            time: timeText,
-            method: "Manual (Staff)",
-            status,
-        }, ...prev]);
-        setNotice(`Recorded manual check-in for ${member.fullName} (${status}).`);
+        setNotice(null);
+        setSubmitting(true);
+        try {
+            const response = await axios.post(
+                '/api/checkin/manual',
+                { memberId: parseInt(selectedMemberId, 10) },
+                { headers: authHeaders() }
+            );
+            setNotice({ type: "success", text: response.data.message || "Manual check-in recorded." });
+            fetchAttendance();
+        } catch (err) {
+            const msg = err.response?.data?.message || err.response?.data?.Message || "Failed to record manual check-in.";
+            setNotice({ type: "error", text: msg });
+        } finally {
+            setSubmitting(false);
+        }
     };
 
-    const filteredAttendance = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        if (!q) return attendance;
-        return attendance.filter(a =>
-            a.memberName.toLowerCase().includes(q) ||
-            a.method.toLowerCase().includes(q) ||
-            a.plan.toLowerCase().includes(q)
-        );
-    }, [attendance, search]);
+    const handleFilterSubmit = (e) => {
+        e.preventDefault();
+        fetchAttendance();
+    };
+
+    const handleClearFilters = () => {
+        setSearch("");
+        setStartDate("");
+        setEndDate("");
+        fetchAttendance({ search: "", startDate: "", endDate: "" });
+    };
+
+    const formatDateTime = (iso) => {
+        if (!iso) return "—";
+        const safe = iso.endsWith("Z") ? iso : `${iso}Z`;
+        return new Date(safe).toLocaleString([], {
+            year: "numeric",
+            month: "short",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    };
 
     return (
         <div className="stack">
@@ -104,7 +124,7 @@ export default function FrontDeskQR() {
                 <button className="btn btn-outline" onClick={fetchQRCode}>Refresh QR Now</button>
             </div>
 
-            {notice && <div className="alert alert-success">{notice}</div>}
+            {notice && <div className={`alert alert-${notice.type}`}>{notice.text}</div>}
 
             <div className="two-col" style={{ alignItems: "start" }}>
                 <div className="card stack" style={{ textAlign: "center", alignItems: "center" }}>
@@ -113,47 +133,76 @@ export default function FrontDeskQR() {
                         <p className="muted" style={{ fontSize: 13 }}>Members scan this code using the SGMM mobile app.</p>
                     </div>
 
-                    <div style={{ padding: 20, background: "#fff", border: "1px solid var(--border)", borderRadius: 12 }}>
-                        <QRCodeSVG value={qrData.qrCode} size={220} level="H" marginSize={2} />
-                    </div>
+                    {qrError && <div className="alert alert-error" style={{ width: "100%" }}>{qrError}</div>}
 
-                    <div className="toolbar" style={{ justifyContent: "center" }}>
-                        <span className="badge badge-success" style={{ fontSize: 13, padding: "6px 12px" }}>
-                            Code: {qrData.qrCode}
-                        </span>
-                        {isDemoQR && <span className="badge badge-info">Preview Mode</span>}
-                    </div>
-                    <p className="muted" style={{ fontSize: 12, margin: 0 }}>Auto-refreshes every 30 seconds</p>
+                    {qrData ? (
+                        <>
+                            <div style={{ padding: 20, background: "#fff", border: "1px solid var(--border)", borderRadius: 12 }}>
+                                <QRCodeSVG value={qrData.qrCode} size={220} level="H" marginSize={2} />
+                            </div>
+                            <span className="badge badge-success" style={{ fontSize: 13, padding: "6px 12px" }}>
+                                Code: {qrData.qrCode}
+                            </span>
+                            <p className="muted" style={{ fontSize: 12, margin: 0 }}>Auto-refreshes every 30 seconds</p>
+                        </>
+                    ) : !qrError ? (
+                        <p className="muted">Generating secure code...</p>
+                    ) : null}
                 </div>
 
                 <div className="card stack">
                     <div>
                         <h3 style={{ marginBottom: 4 }}>Manual Staff Check-In &amp; Attendance Log</h3>
-                        <p className="muted" style={{ fontSize: 13 }}>Record walk-in attendance and search recent gym visits.</p>
+                        <p className="muted" style={{ fontSize: 13 }}>Record walk-in attendance and search gym check-in history.</p>
                     </div>
 
                     <form onSubmit={handleManualCheckIn} className="toolbar" style={{ alignItems: "flex-end" }}>
-                        <div className="field" style={{ flex: 1 }}>
+                        <div className="field" style={{ flex: 1, minWidth: 200 }}>
                             <label>Select Member</label>
-                            <select value={selectedMemberId} onChange={e => setSelectedMemberId(e.target.value)}>
+                            <select
+                                value={selectedMemberId}
+                                onChange={e => setSelectedMemberId(e.target.value)}
+                                required
+                            >
+                                <option value="">-- Choose Member --</option>
                                 {members.map(m => (
                                     <option key={m.id} value={m.id}>
-                                        {m.fullName} ({m.planName})
+                                        {m.fullName} — {m.planName} ({m.isActive ? "Active" : "Inactive"})
                                     </option>
                                 ))}
                             </select>
                         </div>
-                        <button type="submit" className="btn">Record Manual Check-In</button>
+                        <button type="submit" className="btn" disabled={submitting || !selectedMemberId}>
+                            {submitting ? "Recording..." : "Record Manual Check-In"}
+                        </button>
                     </form>
 
-                    <div className="field">
-                        <label>Search Attendance Records</label>
-                        <input
-                            type="text"
-                            placeholder="Search by member name, plan or method..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                        />
+                    <form onSubmit={handleFilterSubmit} className="filters" style={{ padding: 0 }}>
+                        <div className="field filter-search">
+                            <label>Search Member / Plan</label>
+                            <input
+                                type="text"
+                                placeholder="Name, email or plan..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="field">
+                            <label>From</label>
+                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                        </div>
+                        <div className="field">
+                            <label>To</label>
+                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                        </div>
+                        <button type="submit" className="btn btn-outline">Filter</button>
+                        {(search || startDate || endDate) && (
+                            <button type="button" className="btn btn-outline" onClick={handleClearFilters}>Clear</button>
+                        )}
+                    </form>
+
+                    <div className="muted" style={{ fontSize: 13 }}>
+                        Showing {attendance.length} attendance {attendance.length === 1 ? "record" : "records"}
                     </div>
 
                     <div className="table-wrap">
@@ -161,29 +210,25 @@ export default function FrontDeskQR() {
                             <thead>
                                 <tr>
                                     <th>Member</th>
-                                    <th>Check-In Time</th>
-                                    <th>Method</th>
-                                    <th>Status</th>
+                                    <th>Check-In Date &amp; Time</th>
+                                    <th>Membership</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredAttendance.length === 0 ? (
-                                    <tr><td colSpan="4" className="empty">No attendance records found.</td></tr>
-                                ) : filteredAttendance.map(row => (
+                                {loadingLog ? (
+                                    <tr><td colSpan="3" className="empty">Loading attendance records...</td></tr>
+                                ) : attendance.length === 0 ? (
+                                    <tr><td colSpan="3" className="empty">No attendance records found.</td></tr>
+                                ) : attendance.map(row => (
                                     <tr key={row.id}>
                                         <td>
                                             <strong>{row.memberName}</strong>
-                                            <div className="muted" style={{ fontSize: 12 }}>{row.plan}</div>
+                                            <div className="muted" style={{ fontSize: 12 }}>{row.email} · {row.planName}</div>
                                         </td>
-                                        <td>{row.time}</td>
+                                        <td>{formatDateTime(row.checkInTime)}</td>
                                         <td>
-                                            <span className={`badge ${row.method === "QR Scan" ? "badge-info" : "badge-warning"}`}>
-                                                {row.method}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className={`badge ${row.status === "Active" ? "badge-success" : "badge-danger"}`}>
-                                                {row.status}
+                                            <span className={`badge ${row.isMembershipActive ? "badge-success" : "badge-danger"}`}>
+                                                {row.isMembershipActive ? "Active" : "Expired"}
                                             </span>
                                         </td>
                                     </tr>

@@ -86,19 +86,106 @@ namespace GymManagement.API.Services
             return new CheckInResponseDto { Success = true, Message = "Check-in successful! Welcome to the gym." };
         }
 
+        public async Task<CheckInResponseDto> ProcessManualCheckInAsync(int memberId)
+        {
+            var member = await _context.Members
+                .Include(m => m.User)
+                .FirstOrDefaultAsync(m => m.Id == memberId);
+
+            if (member == null)
+            {
+                return new CheckInResponseDto { Success = false, Message = "Member record not found." };
+            }
+
+            if (!member.IsActive || member.EndDate < DateTime.UtcNow)
+            {
+                return new CheckInResponseDto { Success = false, Message = $"Cannot check in: {member.User.FullName}'s membership expired on {member.EndDate:d}." };
+            }
+
+            var today = DateTime.UtcNow.Date;
+            var alreadyCheckedIn = await _context.CheckInRecords
+                .AnyAsync(c => c.MemberId == member.Id && c.CheckInTime.Date == today);
+
+            if (alreadyCheckedIn)
+            {
+                return new CheckInResponseDto { Success = false, Message = $"{member.User.FullName} has already checked in today." };
+            }
+
+            var checkIn = new CheckInRecord
+            {
+                MemberId = member.Id,
+                CheckInTime = DateTime.UtcNow
+            };
+
+            _context.CheckInRecords.Add(checkIn);
+            await _context.SaveChangesAsync();
+
+            return new CheckInResponseDto { Success = true, Message = $"Manual check-in recorded for {member.User.FullName}." };
+        }
+
         public async Task<IEnumerable<CheckInHistoryDto>> GetMemberCheckInHistoryAsync(string userId)
         {
-            var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
-            if (member == null) return new List<CheckInHistoryDto>();
+            var memberIds = await _context.Members
+                .Where(m => m.UserId == userId)
+                .Select(m => m.Id)
+                .ToListAsync();
+
+            if (!memberIds.Any()) return new List<CheckInHistoryDto>();
 
             return await _context.CheckInRecords
-        .Where(c => c.MemberId == member.Id)
-        .OrderByDescending(c => c.CheckInTime)
-        .Select(c => new CheckInHistoryDto
+                .Where(c => memberIds.Contains(c.MemberId))
+                .OrderByDescending(c => c.CheckInTime)
+                .Select(c => new CheckInHistoryDto
+                {
+                    Id = c.Id,
+                    CheckInTime = c.CheckInTime
+                }).ToListAsync();
+        }
+
+        public async Task<IEnumerable<AttendanceRecordDto>> GetAllAttendanceAsync(DateTime? startDate = null, DateTime? endDate = null, string? search = null)
         {
-            Id = c.Id, 
-            CheckInTime = c.CheckInTime
-        }).ToListAsync();
+            var query = _context.CheckInRecords
+                .Include(c => c.Member)
+                    .ThenInclude(m => m.User)
+                .Include(c => c.Member)
+                    .ThenInclude(m => m.MembershipPlan)
+                .AsQueryable();
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(c => c.CheckInTime >= startDate.Value.Date);
+            }
+
+            if (endDate.HasValue)
+            {
+                var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(c => c.CheckInTime <= endOfDay);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(c =>
+                    c.Member.User.FullName.ToLower().Contains(term) ||
+                    (c.Member.User.Email != null && c.Member.User.Email.ToLower().Contains(term)) ||
+                    c.Member.MembershipPlan.Name.ToLower().Contains(term));
+            }
+
+            var now = DateTime.UtcNow;
+
+            return await query
+                .OrderByDescending(c => c.CheckInTime)
+                .Select(c => new AttendanceRecordDto
+                {
+                    Id = c.Id,
+                    MemberId = c.MemberId,
+                    MemberName = c.Member.User.FullName,
+                    Email = c.Member.User.Email ?? "",
+                    PlanName = c.Member.MembershipPlan.Name,
+                    CheckInTime = c.CheckInTime,
+                    IsMembershipActive = c.Member.IsActive && c.Member.EndDate > now
+                })
+                .ToListAsync();
         }
     }
 }

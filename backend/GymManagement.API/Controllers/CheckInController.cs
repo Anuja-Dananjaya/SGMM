@@ -44,6 +44,29 @@ namespace GymManagement.API.Controllers
             return Ok(result);
         }
 
+        // 3. STAFF/ADMIN ENDPOINT: Record manual check-in for a member
+        [HttpPost("manual")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> ManualCheckIn([FromBody] ManualCheckInRequestDto request)
+        {
+            var result = await _checkInService.ProcessManualCheckInAsync(request.MemberId);
+            if (!result.Success) return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        // 4. STAFF/ADMIN ENDPOINT: Search & view all attendance records
+        [HttpGet("all")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> GetAllAttendance(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null,
+            [FromQuery] string? search = null)
+        {
+            var records = await _checkInService.GetAllAttendanceAsync(startDate, endDate, search);
+            return Ok(records);
+        }
+
         [HttpGet("history")]
         [Authorize(Roles = "Member")]
         public async Task<IActionResult> GetMyCheckInHistory()
