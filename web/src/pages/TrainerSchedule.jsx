@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const SAMPLE_APPOINTMENTS = [
-    { id: 1, memberName: 'Kasun Perera', startTime: '2026-11-18T08:00:00Z', endTime: '2026-11-18T09:00:00Z', status: 'Pending' },
-    { id: 2, memberName: 'Nimali Fernando', startTime: '2026-11-18T11:00:00Z', endTime: '2026-11-18T12:00:00Z', status: 'Confirmed' },
-    { id: 3, memberName: 'Dinesh Kumara', startTime: '2026-11-17T14:00:00Z', endTime: '2026-11-17T15:00:00Z', status: 'Completed' },
-    { id: 4, memberName: 'Tharushi Silva', startTime: '2026-11-19T16:00:00Z', endTime: '2026-11-19T17:00:00Z', status: 'Cancelled' },
-];
-
 const BADGE = {
     Pending: 'badge-warning',
     Confirmed: 'badge-success',
@@ -23,41 +16,31 @@ export default function TrainerSchedule() {
     useEffect(() => { fetchAppointments(); }, []);
 
     const fetchAppointments = async () => {
-        const token = localStorage.getItem('token');
-        if (!token || token === 'demo-token') {
-            setAppointments(SAMPLE_APPOINTMENTS);
-            setLoading(false);
-            return;
-        }
-
         try {
+            const token = localStorage.getItem('token');
             const response = await axios.get('/api/Appointments/trainer/schedule', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAppointments(response.data?.length ? response.data : SAMPLE_APPOINTMENTS);
-        } catch {
-            setAppointments(SAMPLE_APPOINTMENTS);
+            setAppointments(Array.isArray(response.data) ? response.data : []);
+        } catch (err) {
+            console.error('Error fetching trainer schedule:', err);
+            setMessage({ type: 'error', text: 'Failed to load your schedule.' });
         } finally {
             setLoading(false);
         }
     };
 
     const updateStatus = async (id, newStatus) => {
-        const token = localStorage.getItem('token');
-        if (!token || token === 'demo-token') {
-            setAppointments(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app));
-            setMessage({ type: 'success', text: `Appointment updated to ${newStatus}.` });
-            return;
-        }
-
+        setMessage(null);
         try {
+            const token = localStorage.getItem('token');
             await axios.put(`/api/Appointments/${id}/status`, `"${newStatus}"`, {
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             setAppointments(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app));
             setMessage({ type: 'success', text: `Appointment updated to ${newStatus}.` });
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update status.' });
+            setMessage({ type: 'error', text: err.response?.data?.message || err.response?.data?.Message || 'Failed to update status.' });
         }
     };
 

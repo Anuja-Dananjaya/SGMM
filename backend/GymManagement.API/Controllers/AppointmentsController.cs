@@ -27,26 +27,28 @@ namespace GymManagement.API.Controllers
         [Authorize(Roles = "Member")]
         public async Task<IActionResult> BookAppointment([FromBody] CreateAppointmentDto dto)
         {
-            // 1. Securely extract the logged-in User ID from the JWT token
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            // 2. Look up their real Member ID from the database
-            var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
+            var member = await _context.Members
+                .OrderByDescending(m => m.EndDate)
+                .FirstOrDefaultAsync(m => m.UserId == userId);
             if (member == null) return BadRequest(new { Message = "Member profile not found." });
 
-            // 3. Overwrite whatever the frontend sent with the SECURE Member ID
             dto.MemberId = member.Id;
 
-            // 4. Proceed with booking
             var result = await _appointmentService.BookAppointmentAsync(dto);
-            
-            if (!result.Success)
-            {
-                return BadRequest(new { Message = result.Message });
-            }
+            if (!result.Success) return BadRequest(new { Message = result.Message });
 
             return Ok(new { Message = result.Message });
+        }
+
+        [HttpGet("all")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> GetAllAppointments()
+        {
+            var appointments = await _appointmentService.GetAllAppointmentsAsync();
+            return Ok(appointments);
         }
 
         [HttpGet("trainer/schedule")]
@@ -54,31 +56,23 @@ namespace GymManagement.API.Controllers
         public async Task<IActionResult> GetTrainerAppointments()
         {
             var trainerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(trainerId)) 
-            {
-                return Unauthorized();
-            }
+            if (string.IsNullOrEmpty(trainerId)) return Unauthorized();
 
             var appointments = await _appointmentService.GetTrainerAppointmentsAsync(trainerId);
             return Ok(appointments);
         }
 
-         [HttpPut("{id}/status")]
-        [Authorize(Roles = "Trainer")]
+        [HttpPut("{id}/status")]
+        [Authorize(Roles = "Trainer,Admin,Staff")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
         {
-            var trainerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(trainerId)) 
-            {
-                return Unauthorized();
-            }
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var result = await _appointmentService.UpdateAppointmentStatusAsync(id, status, trainerId);
-            
-            if (!result.Success)
-            {
-                return BadRequest(new { Message = result.Message });
-            }
+            var isAdminOrStaff = User.IsInRole("Admin") || User.IsInRole("Staff");
+            var result = await _appointmentService.UpdateAppointmentStatusAsync(id, status, userId, isAdminOrStaff);
+
+            if (!result.Success) return BadRequest(new { Message = result.Message });
 
             return Ok(new { Message = result.Message });
         }
@@ -90,7 +84,9 @@ namespace GymManagement.API.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
+            var member = await _context.Members
+                .OrderByDescending(m => m.EndDate)
+                .FirstOrDefaultAsync(m => m.UserId == userId);
             if (member == null) return BadRequest(new { Message = "Member profile not found." });
 
             var appointments = await _appointmentService.GetMemberAppointmentsAsync(member.Id);

@@ -20,25 +20,21 @@ namespace GymManagement.API.Services
 
         public async Task<(bool Success, string Message)> BookAppointmentAsync(CreateAppointmentDto dto)
         {
-            // 1. RULE: Cannot book in the past
-            // Using DateTime.UtcNow. If your app sends local Sri Lanka time, ensure you are comparing apples to apples.
             if (dto.StartTime < DateTime.UtcNow)
             {
                 return (false, "Cannot book an appointment in the past.");
             }
 
-            // 2. RULE: End time must be after start time
             if (dto.EndTime <= dto.StartTime)
             {
                 return (false, "End time must be after the start time.");
             }
 
-            // 3. RULE: Prevent Double Booking
-            // Checks if the Trainer already has a non-cancelled appointment that overlaps with this time
+            // Prevent double booking for the same trainer
             var isDoubleBooked = await _context.Appointments
-                .AnyAsync(a => a.TrainerId == dto.TrainerId 
-                            && a.Status != "Cancelled" 
-                            && dto.StartTime < a.EndTime 
+                .AnyAsync(a => a.TrainerId == dto.TrainerId
+                            && a.Status != "Cancelled"
+                            && dto.StartTime < a.EndTime
                             && dto.EndTime > a.StartTime);
 
             if (isDoubleBooked)
@@ -46,14 +42,13 @@ namespace GymManagement.API.Services
                 return (false, "The trainer is already booked for this time slot.");
             }
 
-            // 4. Save the valid appointment
             var appointment = new Appointment
             {
                 MemberId = dto.MemberId,
                 TrainerId = dto.TrainerId,
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
-                Status = "Pending" // Trainer must approve it later
+                Status = "Pending"
             };
 
             _context.Appointments.Add(appointment);
@@ -62,42 +57,56 @@ namespace GymManagement.API.Services
             return (true, "Appointment booked successfully.");
         }
 
-        public async Task<IEnumerable<AppointmentResponseDto>> GetTrainerAppointmentsAsync(string trainerId)
+        public async Task<IEnumerable<AppointmentResponseDto>> GetAllAppointmentsAsync()
         {
             return await _context.Appointments
                 .Include(a => a.Member)
-                .ThenInclude(m => m.User)
+                    .ThenInclude(m => m.User)
                 .Include(a => a.Trainer)
-                .Where(a => a.TrainerId == trainerId)
-                .OrderBy(a => a.StartTime)
+                .OrderByDescending(a => a.StartTime)
                 .Select(a => new AppointmentResponseDto
                 {
                     Id = a.Id,
-                    TrainerName = a.Trainer.UserName ?? "Unknown",
-                    MemberName = a.Member.User.UserName ?? "Unknown",
+                    TrainerName = !string.IsNullOrWhiteSpace(a.Trainer.FullName) ? a.Trainer.FullName : (a.Trainer.UserName ?? "Unknown"),
+                    MemberName = !string.IsNullOrWhiteSpace(a.Member.User.FullName) ? a.Member.User.FullName : (a.Member.User.UserName ?? "Unknown"),
                     StartTime = a.StartTime,
                     EndTime = a.EndTime,
                     Status = a.Status
                 }).ToListAsync();
         }
 
+        public async Task<IEnumerable<AppointmentResponseDto>> GetTrainerAppointmentsAsync(string trainerId)
+        {
+            return await _context.Appointments
+                .Include(a => a.Member)
+                    .ThenInclude(m => m.User)
+                .Include(a => a.Trainer)
+                .Where(a => a.TrainerId == trainerId)
+                .OrderBy(a => a.StartTime)
+                .Select(a => new AppointmentResponseDto
+                {
+                    Id = a.Id,
+                    TrainerName = !string.IsNullOrWhiteSpace(a.Trainer.FullName) ? a.Trainer.FullName : (a.Trainer.UserName ?? "Unknown"),
+                    MemberName = !string.IsNullOrWhiteSpace(a.Member.User.FullName) ? a.Member.User.FullName : (a.Member.User.UserName ?? "Unknown"),
+                    StartTime = a.StartTime,
+                    EndTime = a.EndTime,
+                    Status = a.Status
+                }).ToListAsync();
+        }
 
-         public async Task<(bool Success, string Message)> UpdateAppointmentStatusAsync(int appointmentId, string status, string trainerId)
+        public async Task<(bool Success, string Message)> UpdateAppointmentStatusAsync(int appointmentId, string status, string userId, bool isAdminOrStaff = false)
         {
             var appointment = await _context.Appointments.FindAsync(appointmentId);
-
             if (appointment == null)
             {
                 return (false, "Appointment not found.");
             }
 
-            // Security: Ensure the trainer modifying the appointment is the one assigned to it
-            if (appointment.TrainerId != trainerId)
+            if (!isAdminOrStaff && appointment.TrainerId != userId)
             {
                 return (false, "You are not authorized to update this appointment.");
             }
 
-            // Validate status
             var validStatuses = new[] { "Confirmed", "Cancelled", "Completed" };
             if (!validStatuses.Contains(status))
             {
@@ -115,14 +124,14 @@ namespace GymManagement.API.Services
             return await _context.Appointments
                 .Include(a => a.Trainer)
                 .Include(a => a.Member)
-                .ThenInclude(m => m.User)
+                    .ThenInclude(m => m.User)
                 .Where(a => a.MemberId == memberId)
                 .OrderByDescending(a => a.StartTime)
                 .Select(a => new AppointmentResponseDto
                 {
                     Id = a.Id,
-                    TrainerName = a.Trainer.UserName ?? "Unknown",
-                    MemberName = a.Member.User.UserName ?? "Unknown",
+                    TrainerName = !string.IsNullOrWhiteSpace(a.Trainer.FullName) ? a.Trainer.FullName : (a.Trainer.UserName ?? "Unknown"),
+                    MemberName = !string.IsNullOrWhiteSpace(a.Member.User.FullName) ? a.Member.User.FullName : (a.Member.User.UserName ?? "Unknown"),
                     StartTime = a.StartTime,
                     EndTime = a.EndTime,
                     Status = a.Status

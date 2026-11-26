@@ -1,21 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 
-const SAMPLE_TRAINERS = [
-    { id: 't1', fullName: 'Ruwan Bandara', email: 'ruwan@sgmm.lk', phone: '077-3124455', specialization: 'Strength & HIIT', slots: ['Mon–Fri 06:00–14:00', 'Sat 08:00–12:00'], status: 'Active' },
-    { id: 't2', fullName: 'Amaya Perera', email: 'amaya@sgmm.lk', phone: '071-8892310', specialization: 'Weight Loss & Nutrition', slots: ['Mon–Fri 10:00–18:00'], status: 'Active' },
-    { id: 't3', fullName: 'Dilani Jayasinghe', email: 'dilani@sgmm.lk', phone: '076-5401199', specialization: 'Yoga, Mobility & Rehab', slots: ['Tue–Sat 07:00–15:00'], status: 'Active' },
-    { id: 't4', fullName: 'Sahan Wijesinghe', email: 'sahan@sgmm.lk', phone: '077-9043321', specialization: 'Bodybuilding & Conditioning', slots: ['Mon–Thu 14:00–21:00'], status: 'On Leave' },
-];
-
-const SAMPLE_APPOINTMENTS = [
-    { id: 101, memberName: 'Kasun Perera', trainerName: 'Ruwan Bandara', date: '2026-11-18', timeSlot: '08:00 – 09:00', focus: 'Upper Body Hypertrophy', status: 'Confirmed' },
-    { id: 102, memberName: 'Nimali Fernando', trainerName: 'Amaya Perera', date: '2026-11-18', timeSlot: '11:00 – 12:00', focus: 'Fat Loss Assessment', status: 'Pending' },
-    { id: 103, memberName: 'Dinesh Kumara', trainerName: 'Dilani Jayasinghe', date: '2026-11-18', timeSlot: '14:00 – 15:00', focus: 'Lower Back Mobility', status: 'Confirmed' },
-    { id: 104, memberName: 'Tharushi Silva', trainerName: 'Ruwan Bandara', date: '2026-11-17', timeSlot: '10:00 – 11:00', focus: 'HIIT Conditioning', status: 'Completed' },
-    { id: 105, memberName: 'Chathura De Silva', trainerName: 'Amaya Perera', date: '2026-11-19', timeSlot: '16:00 – 17:00', focus: 'Diet & Macro Plan', status: 'Cancelled' },
-];
-
 const STATUS_BADGE = {
     Confirmed: 'badge-success',
     Pending: 'badge-warning',
@@ -23,110 +8,169 @@ const STATUS_BADGE = {
     Cancelled: 'badge-danger',
 };
 
+const EMPTY_FORM = {
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    specialization: '',
+    days: 'Mon-Fri',
+    timeSlot: '08:00-16:00',
+    status: 'Active',
+};
+
 export default function AdminTrainers() {
     const [tab, setTab] = useState('trainers');
-    const [trainers, setTrainers] = useState(SAMPLE_TRAINERS);
-    const [appointments, setAppointments] = useState(SAMPLE_APPOINTMENTS);
+    const [trainers, setTrainers] = useState([]);
+    const [appointments, setAppointments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [message, setMessage] = useState(null);
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [formData, setFormData] = useState(EMPTY_FORM);
 
-    const [formData, setFormData] = useState({
-        fullName: '',
-        email: '',
-        phone: '',
-        specialization: '',
-        days: 'Mon–Fri',
-        timeSlot: '08:00–16:00',
-        status: 'Active',
-    });
+    const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token || token === 'demo-token') return;
-
-        axios.get('/api/Trainers', { headers: { Authorization: `Bearer ${token}` } })
-            .then(res => {
-                if (Array.isArray(res.data) && res.data.length > 0) {
-                    const mapped = res.data.map((t, idx) => ({
-                        id: t.id || `api-${idx}`,
-                        fullName: t.name || 'Trainer',
-                        email: `${(t.name || 'trainer').toLowerCase().replace(/\s+/g, '')}@sgmm.lk`,
-                        phone: '077-0000000',
-                        specialization: 'Personal Training',
-                        slots: ['Mon–Fri 08:00–16:00'],
-                        status: 'Active',
-                    }));
-                    setTrainers([...mapped, ...SAMPLE_TRAINERS]);
-                }
-            })
-            .catch(() => { /* keep sample data for preview */ });
+        fetchAll();
     }, []);
 
+    const fetchAll = async () => {
+        setLoading(true);
+        try {
+            const headers = authHeaders();
+            const [trainersRes, appointmentsRes] = await Promise.all([
+                axios.get('/api/Trainers', { headers }),
+                axios.get('/api/Appointments/all', { headers }),
+            ]);
+            setTrainers(Array.isArray(trainersRes.data) ? trainersRes.data : []);
+            setAppointments(Array.isArray(appointmentsRes.data) ? appointmentsRes.data : []);
+        } catch (err) {
+            console.error('Error loading trainers or appointments:', err);
+            setMessage({ type: 'error', text: 'Failed to load trainers and appointments.' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const openAdd = () => {
+        setMessage(null);
         setEditingId(null);
-        setFormData({ fullName: '', email: '', phone: '', specialization: '', days: 'Mon–Fri', timeSlot: '08:00–16:00', status: 'Active' });
+        setFormData(EMPTY_FORM);
         setShowForm(true);
     };
 
     const openEdit = (trainer) => {
-        const firstSlot = trainer.slots?.[0] || 'Mon–Fri 08:00–16:00';
-        const [days, timeSlot] = firstSlot.split(' ');
+        setMessage(null);
+        const avail = trainer.availability || 'Mon-Fri 08:00-16:00';
+        const parts = avail.trim().split(/\s+/);
+        const days = parts[0] || 'Mon-Fri';
+        const timeSlot = parts.slice(1).join(' ') || '08:00-16:00';
+
         setEditingId(trainer.id);
         setFormData({
-            fullName: trainer.fullName,
-            email: trainer.email,
-            phone: trainer.phone,
-            specialization: trainer.specialization,
-            days: days || 'Mon–Fri',
-            timeSlot: timeSlot || '08:00–16:00',
-            status: trainer.status,
+            fullName: trainer.fullName || trainer.name || '',
+            email: trainer.email || '',
+            phone: trainer.phone || '',
+            password: '',
+            specialization: trainer.specialization || '',
+            days,
+            timeSlot,
+            status: trainer.status || 'Active',
         });
         setShowForm(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleSaveTrainer = (e) => {
+    const handleSaveTrainer = async (e) => {
         e.preventDefault();
-        const slotText = `${formData.days} ${formData.timeSlot}`.trim();
-        if (editingId) {
-            setTrainers(prev => prev.map(t => t.id === editingId ? {
-                ...t,
-                fullName: formData.fullName,
-                email: formData.email,
-                phone: formData.phone,
-                specialization: formData.specialization,
-                slots: [slotText],
-                status: formData.status,
-            } : t));
-            setMessage({ type: 'success', text: `Updated trainer profile and availability for ${formData.fullName}.` });
-        } else {
-            setTrainers(prev => [{
-                id: `t-${Date.now()}`,
-                fullName: formData.fullName,
-                email: formData.email,
-                phone: formData.phone,
-                specialization: formData.specialization,
-                slots: [slotText],
-                status: formData.status,
-            }, ...prev]);
-            setMessage({ type: 'success', text: `Added trainer ${formData.fullName} with availability ${slotText}.` });
+        setMessage(null);
+        setSaving(true);
+
+        const availability = `${formData.days} ${formData.timeSlot}`.trim();
+        try {
+            if (editingId) {
+                const res = await axios.put(
+                    `/api/Trainers/${editingId}`,
+                    {
+                        fullName: formData.fullName,
+                        email: formData.email,
+                        phone: formData.phone,
+                        specialization: formData.specialization,
+                        availability,
+                        status: formData.status,
+                    },
+                    { headers: authHeaders() }
+                );
+                setMessage({ type: 'success', text: res.data?.message || res.data?.Message || 'Trainer updated successfully.' });
+            } else {
+                const res = await axios.post(
+                    '/api/Trainers',
+                    {
+                        fullName: formData.fullName,
+                        email: formData.email,
+                        phone: formData.phone,
+                        password: formData.password,
+                        specialization: formData.specialization,
+                        availability,
+                        status: formData.status,
+                    },
+                    { headers: authHeaders() }
+                );
+                setMessage({ type: 'success', text: res.data?.message || res.data?.Message || 'Trainer created successfully.' });
+            }
+
+            setShowForm(false);
+            setEditingId(null);
+            fetchAll();
+        } catch (err) {
+            const msg = err.response?.data?.message || err.response?.data?.Message || 'Failed to save trainer.';
+            setMessage({ type: 'error', text: msg });
+        } finally {
+            setSaving(false);
         }
-        setShowForm(false);
     };
 
-    const handleAppointmentAction = (id, newStatus) => {
-        setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
-        setMessage({ type: 'success', text: `Appointment #${id} updated to ${newStatus}.` });
+    const handleAppointmentAction = async (id, newStatus) => {
+        setMessage(null);
+        try {
+            const res = await axios.put(
+                `/api/Appointments/${id}/status`,
+                `"${newStatus}"`,
+                { headers: { ...authHeaders(), 'Content-Type': 'application/json' } }
+            );
+            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+            setMessage({ type: 'success', text: res.data?.message || res.data?.Message || `Appointment marked as ${newStatus}.` });
+        } catch (err) {
+            const msg = err.response?.data?.message || err.response?.data?.Message || 'Failed to update appointment.';
+            setMessage({ type: 'error', text: msg });
+        }
+    };
+
+    const formatLocalDate = (utcString) => {
+        if (!utcString) return '—';
+        const safe = utcString.endsWith('Z') ? utcString : `${utcString}Z`;
+        return new Date(safe).toLocaleDateString();
+    };
+
+    const formatLocalTime = (utcString) => {
+        if (!utcString) return '—';
+        const safe = utcString.endsWith('Z') ? utcString : `${utcString}Z`;
+        return new Date(safe).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     const filteredAppointments = useMemo(() => {
         const q = search.trim().toLowerCase();
         return appointments.filter(a => {
             if (statusFilter !== 'All' && a.status !== statusFilter) return false;
-            if (q && !(a.memberName.toLowerCase().includes(q) || a.trainerName.toLowerCase().includes(q) || a.focus.toLowerCase().includes(q))) return false;
+            if (q && !(
+                a.memberName?.toLowerCase().includes(q) ||
+                a.trainerName?.toLowerCase().includes(q)
+            )) return false;
             return true;
         });
     }, [appointments, search, statusFilter]);
@@ -135,8 +179,8 @@ export default function AdminTrainers() {
         <div className="stack">
             <div className="page-header">
                 <div>
-                    <h1>Trainers & Appointments</h1>
-                    <p>Manage trainer profiles, availability time slots, and member 1-on-1 schedules.</p>
+                    <h1>Trainers &amp; Appointments</h1>
+                    <p>Manage trainer profiles, availability slots, and 1-on-1 member schedules.</p>
                 </div>
                 {tab === 'trainers' && (
                     <button className="btn" onClick={openAdd}>+ Add Trainer</button>
@@ -147,7 +191,7 @@ export default function AdminTrainers() {
 
             <div className="tabs">
                 <button className={`tab-btn ${tab === 'trainers' ? 'active' : ''}`} onClick={() => setTab('trainers')}>
-                    Trainers & Availability ({trainers.length})
+                    Trainers &amp; Availability ({trainers.length})
                 </button>
                 <button className={`tab-btn ${tab === 'appointments' ? 'active' : ''}`} onClick={() => setTab('appointments')}>
                     Appointment Schedule ({appointments.length})
@@ -158,7 +202,7 @@ export default function AdminTrainers() {
                 <>
                     {showForm && (
                         <div className="card">
-                            <h3>{editingId ? 'Edit Trainer & Availability' : 'Register Trainer Profile'}</h3>
+                            <h3>{editingId ? 'Edit Trainer & Availability' : 'Register New Trainer'}</h3>
                             <form onSubmit={handleSaveTrainer} className="form-grid">
                                 <div className="field">
                                     <label>Full Name</label>
@@ -170,24 +214,31 @@ export default function AdminTrainers() {
                                 </div>
                                 <div className="field">
                                     <label>Phone</label>
-                                    <input type="tel" required value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                                    <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
                                 </div>
                                 <div className="field">
                                     <label>Specialization</label>
                                     <input type="text" placeholder="e.g. Strength & Conditioning" required value={formData.specialization} onChange={e => setFormData({ ...formData, specialization: e.target.value })} />
                                 </div>
+                                {!editingId && (
+                                    <div className="field">
+                                        <label>Temporary Password</label>
+                                        <input type="text" required minLength={6} placeholder="e.g. Trainer@123" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
+                                    </div>
+                                )}
                                 <div className="field">
                                     <label>Available Days</label>
                                     <select value={formData.days} onChange={e => setFormData({ ...formData, days: e.target.value })}>
-                                        <option value="Mon–Fri">Mon–Fri</option>
-                                        <option value="Tue–Sat">Tue–Sat</option>
-                                        <option value="Mon–Thu">Mon–Thu</option>
-                                        <option value="Sat–Sun">Weekends Only</option>
+                                        <option value="Mon-Fri">Mon-Fri</option>
+                                        <option value="Tue-Sat">Tue-Sat</option>
+                                        <option value="Mon-Thu">Mon-Thu</option>
+                                        <option value="Sat-Sun">Weekends Only</option>
+                                        <option value="Daily">Daily</option>
                                     </select>
                                 </div>
                                 <div className="field">
                                     <label>Available Time Slot</label>
-                                    <input type="text" placeholder="08:00–16:00" required value={formData.timeSlot} onChange={e => setFormData({ ...formData, timeSlot: e.target.value })} />
+                                    <input type="text" placeholder="08:00-16:00" required value={formData.timeSlot} onChange={e => setFormData({ ...formData, timeSlot: e.target.value })} />
                                 </div>
                                 <div className="field">
                                     <label>Status</label>
@@ -198,7 +249,7 @@ export default function AdminTrainers() {
                                 </div>
                                 <div className="form-actions">
                                     <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>Cancel</button>
-                                    <button type="submit" className="btn">Save Trainer</button>
+                                    <button type="submit" className="btn" disabled={saving}>{saving ? 'Saving...' : 'Save Trainer'}</button>
                                 </div>
                             </form>
                         </div>
@@ -210,36 +261,37 @@ export default function AdminTrainers() {
                                 <tr>
                                     <th>Trainer</th>
                                     <th>Specialization</th>
-                                    <th>Availability Slots</th>
+                                    <th>Availability</th>
                                     <th>Status</th>
                                     <th style={{ width: 170 }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {trainers.map(t => (
+                                {loading ? (
+                                    <tr><td colSpan="5" className="empty">Loading trainers...</td></tr>
+                                ) : trainers.length === 0 ? (
+                                    <tr><td colSpan="5" className="empty">No trainers registered yet. Click &ldquo;+ Add Trainer&rdquo; to add one.</td></tr>
+                                ) : trainers.map(t => (
                                     <tr key={t.id}>
                                         <td>
-                                            <strong>{t.fullName}</strong>
-                                            <div className="muted" style={{ fontSize: 13 }}>{t.email} · {t.phone}</div>
-                                        </td>
-                                        <td>{t.specialization}</td>
-                                        <td>
-                                            <div className="toolbar">
-                                                {t.slots.map((slot, i) => (
-                                                    <span key={i} className="badge badge-info">{slot}</span>
-                                                ))}
+                                            <strong>{t.fullName || t.name}</strong>
+                                            <div className="muted" style={{ fontSize: 13 }}>
+                                                {t.email}{t.phone ? ` · ${t.phone}` : ''}
                                             </div>
+                                        </td>
+                                        <td>{t.specialization || 'Personal Training'}</td>
+                                        <td>
+                                            <span className="badge badge-info">{t.availability || 'Mon-Fri 08:00-16:00'}</span>
                                         </td>
                                         <td>
                                             <span className={`badge ${t.status === 'Active' ? 'badge-success' : 'badge-warning'}`}>
-                                                {t.status}
+                                                {t.status || 'Active'}
                                             </span>
                                         </td>
                                         <td>
-                                            <div className="toolbar">
-                                                <button className="btn btn-outline btn-sm" onClick={() => openEdit(t)}>Edit</button>
-                                                <button className="btn btn-outline btn-sm" onClick={() => openEdit(t)}>Set Slots</button>
-                                            </div>
+                                            <button className="btn btn-outline btn-sm" onClick={() => openEdit(t)}>
+                                                Edit / Set Slots
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -256,7 +308,7 @@ export default function AdminTrainers() {
                             <label>Search Appointments</label>
                             <input
                                 type="text"
-                                placeholder="Member, trainer or session focus..."
+                                placeholder="Member or trainer name..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                             />
@@ -265,14 +317,14 @@ export default function AdminTrainers() {
                             <label>Status</label>
                             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                                 <option value="All">All Statuses</option>
-                                <option value="Confirmed">Confirmed</option>
                                 <option value="Pending">Pending</option>
+                                <option value="Confirmed">Confirmed</option>
                                 <option value="Completed">Completed</option>
                                 <option value="Cancelled">Cancelled</option>
                             </select>
                         </div>
                         <span className="badge badge-success" style={{ padding: '8px 12px' }}>
-                            Conflict Check: Active (Auto-blocks overlapping slots)
+                            Conflict Check: Active
                         </span>
                     </div>
 
@@ -282,24 +334,25 @@ export default function AdminTrainers() {
                                 <tr>
                                     <th>Member</th>
                                     <th>Trainer</th>
-                                    <th>Date & Time Slot</th>
+                                    <th>Date &amp; Time</th>
                                     <th>Status</th>
                                     <th style={{ width: 210 }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredAppointments.length === 0 ? (
-                                    <tr><td colSpan="5" className="empty">No appointments match your filter.</td></tr>
+                                {loading ? (
+                                    <tr><td colSpan="5" className="empty">Loading appointments...</td></tr>
+                                ) : filteredAppointments.length === 0 ? (
+                                    <tr><td colSpan="5" className="empty">No appointments found.</td></tr>
                                 ) : filteredAppointments.map(a => (
                                     <tr key={a.id}>
-                                        <td>
-                                            <strong>{a.memberName}</strong>
-                                            <div className="muted" style={{ fontSize: 13 }}>{a.focus}</div>
-                                        </td>
+                                        <td><strong>{a.memberName}</strong></td>
                                         <td>{a.trainerName}</td>
                                         <td>
-                                            <strong>{a.date}</strong>
-                                            <div className="muted" style={{ fontSize: 13 }}>{a.timeSlot}</div>
+                                            <strong>{formatLocalDate(a.startTime)}</strong>
+                                            <div className="muted" style={{ fontSize: 13 }}>
+                                                {formatLocalTime(a.startTime)} – {formatLocalTime(a.endTime)}
+                                            </div>
                                         </td>
                                         <td><span className={`badge ${STATUS_BADGE[a.status] || ''}`}>{a.status}</span></td>
                                         <td>
