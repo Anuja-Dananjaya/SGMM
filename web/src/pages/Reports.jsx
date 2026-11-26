@@ -1,101 +1,145 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const REPORT_DATA = {
-    membership: {
-        title: 'Membership Status & Renewal Report',
-        kpis: [
-            { label: 'Total Members', value: '176', badge: 'All registered', tone: 'badge-info' },
-            { label: 'Active Plans', value: '148', badge: '84.1% active', tone: 'badge-success' },
-            { label: 'Expiring (7 Days)', value: '9', badge: 'Renewal reminders sent', tone: 'badge-warning' },
-            { label: 'Expired / Cancelled', value: '19', badge: '10.8% churn', tone: 'badge-danger' },
-        ],
-        columns: ['Member Name', 'Email', 'Plan', 'Start Date', 'Expiry Date', 'Status'],
-        rows: [
-            ['Kasun Perera', 'kasun@sgmm.lk', 'Platinum Annual', '2026-01-15', '2027-01-15', 'Active'],
-            ['Nimal Perera', 'nimal@gmail.com', 'Gold Monthly', '2026-10-20', '2026-11-20', 'Expiring Soon'],
-            ['Kavindi Silva', 'kavindi@yahoo.com', 'Platinum Annual', '2025-11-21', '2026-11-21', 'Expiring Soon'],
-            ['Dilshan Fernando', 'dilshan@gmail.com', 'Standard Monthly', '2026-10-23', '2026-11-23', 'Expiring Soon'],
-            ['Ishara Madushan', 'ishara@outlook.com', 'Gold Monthly', '2026-09-10', '2026-10-10', 'Expired'],
-            ['Tharushi Silva', 'tharushi@gmail.com', 'Student Plan', '2026-11-01', '2026-12-01', 'Active'],
-        ],
-    },
-    attendance: {
-        title: 'Member Attendance Report',
-        kpis: [
-            { label: 'Total Check-Ins (30d)', value: '1,284', badge: '+11% vs last month', tone: 'badge-success' },
-            { label: 'Daily Average', value: '43', badge: 'Members / day', tone: 'badge-info' },
-            { label: 'QR Mobile Check-Ins', value: '1,196', badge: '93.1% via QR', tone: 'badge-success' },
-            { label: 'Manual Staff Check-Ins', value: '88', badge: 'Front-desk log', tone: 'badge-warning' },
-        ],
-        columns: ['Member Name', 'Membership Plan', 'Check-In Date', 'Check-In Time', 'Method', 'Verification'],
-        rows: [
-            ['Kasun Perera', 'Platinum Annual', '2026-11-18', '06:42 AM', 'Mobile QR Scan', 'Verified Active'],
-            ['Tharushi Silva', 'Student Plan', '2026-11-18', '07:15 AM', 'Mobile QR Scan', 'Verified Active'],
-            ['Nimal Perera', 'Gold Monthly', '2026-11-18', '08:05 AM', 'Manual (Staff)', 'Verified Active'],
-            ['Dinesh Kumara', 'Standard Monthly', '2026-11-17', '05:48 PM', 'Mobile QR Scan', 'Verified Active'],
-            ['Kavindi Silva', 'Platinum Annual', '2026-11-17', '06:20 PM', 'Mobile QR Scan', 'Verified Active'],
-            ['Saman Kumara', 'Gold Monthly', '2026-11-17', '07:05 PM', 'Manual (Staff)', 'Verified Active'],
-        ],
-    },
-    revenue: {
-        title: 'Payment & Revenue Report',
-        kpis: [
-            { label: 'Total Revenue (MTD)', value: 'LKR 542,500', badge: '+8.4% growth', tone: 'badge-success' },
-            { label: 'Completed Payments', value: '139', badge: 'Transactions', tone: 'badge-info' },
-            { label: 'Pending / Overdue', value: 'LKR 37,500', badge: '5 accounts', tone: 'badge-danger' },
-            { label: 'Top Method', value: 'Card (58%)', badge: 'Cash 31% · Transfer 11%', tone: 'badge-info' },
-        ],
-        columns: ['Receipt #', 'Member Name', 'Plan', 'Payment Date', 'Method', 'Amount (LKR)', 'Status'],
-        rows: [
-            ['INV-2026-1042', 'Kasun Perera', 'Platinum Annual', '2026-11-15', 'Card', '15,000.00', 'Completed'],
-            ['INV-2026-1041', 'Tharushi Silva', 'Student Plan', '2026-11-14', 'Cash', '4,500.00', 'Completed'],
-            ['INV-2026-1040', 'Dinesh Kumara', 'Standard Monthly', '2026-11-12', 'Bank Transfer', '6,500.00', 'Completed'],
-            ['INV-2026-1039', 'Ishara Madushan', 'Gold Monthly', '2026-11-10', 'Cash', '7,500.00', 'Pending'],
-            ['INV-2026-1038', 'Nimali Fernando', 'Gold Monthly', '2026-11-08', 'Card', '7,500.00', 'Completed'],
-        ],
-    },
-    classes: {
-        title: 'Class Scheduling & Booking Report',
-        kpis: [
-            { label: 'Scheduled Classes', value: '24', badge: 'This month', tone: 'badge-info' },
-            { label: 'Total Bookings', value: '342', badge: 'Confirmed seats', tone: 'badge-success' },
-            { label: 'Avg. Occupancy', value: '84%', badge: 'Across all classes', tone: 'badge-success' },
-            { label: 'Cancellations', value: '14', badge: '3.9% rate', tone: 'badge-warning' },
-        ],
-        columns: ['Class Name', 'Trainer', 'Date', 'Time', 'Booked / Capacity', 'Status'],
-        rows: [
-            ['Morning HIIT Blast', 'Coach Ruwan', '2026-11-18', '07:00 – 08:00', '18 / 20 (90%)', 'Active'],
-            ['Power Yoga & Mobility', 'Coach Dilani', '2026-11-18', '17:30 – 18:30', '15 / 15 (100%)', 'Full'],
-            ['Evening Spin & Core', 'Coach Ruwan', '2026-11-18', '18:45 – 19:45', '12 / 20 (60%)', 'Active'],
-            ['Strength Circuit', 'Coach Sahan', '2026-11-19', '06:30 – 07:30', '16 / 18 (89%)', 'Active'],
-            ['Core & Cardio Burn', 'Coach Amaya', '2026-11-19', '18:00 – 19:00', '14 / 20 (70%)', 'Active'],
-        ],
-    },
+const REPORT_TITLES = {
+    membership: 'Membership Status & Renewal Report',
+    attendance: 'Member Attendance Report',
+    revenue: 'Payment & Revenue Report',
+    classes: 'Class Scheduling & Booking Report',
 };
 
 const BADGE_FOR = {
     Active: 'badge-success',
-    'Verified Active': 'badge-success',
     Completed: 'badge-success',
     'Expiring Soon': 'badge-warning',
     Pending: 'badge-warning',
-    'Mobile QR Scan': 'badge-info',
-    'Manual (Staff)': 'badge-warning',
     Expired: 'badge-danger',
+    Cancelled: 'badge-danger',
+    Refunded: 'badge-danger',
     Full: 'badge-danger',
 };
 
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
+const fmtDateTime = (d) => {
+    if (!d) return '—';
+    const safe = String(d).endsWith('Z') ? d : `${d}Z`;
+    return new Date(safe).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+function buildTableModel(category, payload) {
+    if (!payload) return { kpis: [], columns: [], rows: [] };
+    const s = payload.summary || {};
+    const list = payload.rows || [];
+
+    if (category === 'membership') {
+        return {
+            kpis: [
+                { label: 'Total Memberships', value: s.total ?? 0, badge: 'In selected range', tone: 'badge-info' },
+                { label: 'Active Plans', value: s.active ?? 0, badge: 'Currently valid', tone: 'badge-success' },
+                { label: 'Expiring (7 Days)', value: s.expiringSoon ?? 0, badge: 'Needs renewal', tone: 'badge-warning' },
+                { label: 'Expired / Cancelled', value: s.expired ?? 0, badge: 'Inactive', tone: 'badge-danger' },
+            ],
+            columns: ['Member Name', 'Email', 'Plan', 'Start Date', 'Expiry Date', 'Status'],
+            rows: list.map(r => [r.memberName, r.email, r.planName, fmtDate(r.startDate), fmtDate(r.endDate), r.status]),
+        };
+    }
+
+    if (category === 'attendance') {
+        return {
+            kpis: [
+                { label: 'Total Check-Ins', value: s.totalCheckIns ?? 0, badge: 'Recorded visits', tone: 'badge-success' },
+                { label: 'Unique Members', value: s.uniqueMembers ?? 0, badge: 'Distinct attendees', tone: 'badge-info' },
+                { label: 'Daily Average', value: s.dailyAverage ?? 0, badge: 'Visits / active day', tone: 'badge-info' },
+                { label: 'Active Days', value: s.daysCovered ?? 0, badge: 'With check-ins', tone: 'badge-warning' },
+            ],
+            columns: ['Member Name', 'Email', 'Plan', 'Check-In Date & Time', 'Membership Status'],
+            rows: list.map(r => [r.memberName, r.email, r.planName, fmtDateTime(r.checkInTime), r.status]),
+        };
+    }
+
+    if (category === 'revenue') {
+        return {
+            kpis: [
+                { label: 'Collected Revenue', value: `LKR ${Number(s.totalRevenue ?? 0).toLocaleString()}`, badge: 'Completed payments', tone: 'badge-success' },
+                { label: 'Completed Payments', value: s.completedCount ?? 0, badge: 'Transactions', tone: 'badge-info' },
+                { label: 'Pending Dues', value: `LKR ${Number(s.pendingAmount ?? 0).toLocaleString()}`, badge: `${s.pendingCount ?? 0} pending`, tone: 'badge-warning' },
+                { label: 'Top Method', value: s.topMethod || '—', badge: 'Most used', tone: 'badge-info' },
+            ],
+            columns: ['Receipt #', 'Member Name', 'Plan', 'Payment Date', 'Method', 'Amount (LKR)', 'Status'],
+            rows: list.map(r => [
+                r.receiptNo,
+                r.memberName,
+                r.planName,
+                fmtDate(r.paymentDate),
+                r.paymentMethod,
+                Number(r.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+                r.status,
+            ]),
+        };
+    }
+
+    return {
+        kpis: [
+            { label: 'Scheduled Classes', value: s.scheduledClasses ?? 0, badge: 'In selected range', tone: 'badge-info' },
+            { label: 'Confirmed Bookings', value: s.totalBookings ?? 0, badge: 'Booked seats', tone: 'badge-success' },
+            { label: 'Avg. Occupancy', value: `${s.avgOccupancy ?? 0}%`, badge: 'Across classes', tone: 'badge-success' },
+            { label: 'Cancelled Bookings', value: s.cancelledBookings ?? 0, badge: 'Cancellations', tone: 'badge-warning' },
+        ],
+        columns: ['Class Name', 'Date', 'Time', 'Booked / Capacity', 'Occupancy', 'Status'],
+        rows: list.map(r => [
+            r.className,
+            fmtDate(r.classDate),
+            r.time,
+            `${r.enrolledCount} / ${r.capacity}`,
+            `${r.occupancy}%`,
+            r.status,
+        ]),
+    };
+}
+
 export default function Reports() {
     const [category, setCategory] = useState('membership');
-    const [fromDate, setFromDate] = useState('2026-11-01');
-    const [toDate, setToDate] = useState('2026-11-18');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
+    const [payload, setPayload] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [notice, setNotice] = useState(null);
 
-    const report = REPORT_DATA[category];
+    const fetchReport = async (cat = category, from = fromDate, to = toDate) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem('token');
+            const params = {};
+            if (from) params.fromDate = from;
+            if (to) params.toDate = to;
+
+            const res = await axios.get(`/api/Reports/${cat}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params,
+            });
+            setPayload(res.data);
+        } catch (err) {
+            console.error('Error loading report:', err);
+            setError('Failed to generate report. Ensure the backend API is running.');
+            setPayload(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReport(category, fromDate, toDate);
+    }, [category]);
+
+    const title = REPORT_TITLES[category];
+    const { kpis, columns, rows } = buildTableModel(category, payload);
 
     const exportCSV = () => {
-        const escape = (val) => `"${String(val).replace(/"/g, '""')}"`;
-        const csv = [report.columns.map(escape).join(','), ...report.rows.map(r => r.map(escape).join(','))].join('\n');
+        if (!columns.length) return;
+        const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+        const csv = [columns.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -103,11 +147,14 @@ export default function Reports() {
         link.download = `sgmm-${category}-report.csv`;
         link.click();
         URL.revokeObjectURL(url);
-        setNotice(`Exported ${report.title} as CSV.`);
+        setNotice(`Exported ${title} (${rows.length} rows) as CSV.`);
     };
 
-    const exportPDF = () => {
-        window.print();
+    const handleClear = () => {
+        setFromDate('');
+        setToDate('');
+        setNotice(null);
+        fetchReport(category, '', '');
     };
 
     return (
@@ -115,20 +162,34 @@ export default function Reports() {
             <div className="page-header">
                 <div>
                     <h1>Management Reports &amp; Analytics</h1>
-                    <p>Generate and export membership, attendance, payment, and class booking reports ({fromDate} to {toDate}).</p>
+                    <p>
+                        Live reports across memberships, attendance, payments, and class bookings
+                        {(fromDate || toDate) ? ` (${fromDate || 'Start'} to ${toDate || 'Today'})` : ''}.
+                    </p>
                 </div>
                 <div className="toolbar no-print">
-                    <button className="btn btn-outline" onClick={exportCSV}>Export CSV</button>
-                    <button className="btn" onClick={exportPDF}>Export PDF</button>
+                    <button className="btn btn-outline" onClick={exportCSV} disabled={loading || rows.length === 0}>
+                        Export CSV
+                    </button>
+                    <button className="btn" onClick={() => window.print()} disabled={loading}>
+                        Export PDF
+                    </button>
                 </div>
             </div>
 
+            {error && <div className="alert alert-error no-print">{error}</div>}
             {notice && <div className="alert alert-success no-print">{notice}</div>}
 
             <div className="card filters no-print">
                 <div className="field" style={{ flex: '1 1 240px' }}>
                     <label>Report Category</label>
-                    <select value={category} onChange={e => { setCategory(e.target.value); setNotice(null); }}>
+                    <select
+                        value={category}
+                        onChange={e => {
+                            setCategory(e.target.value);
+                            setNotice(null);
+                        }}
+                    >
                         <option value="membership">Membership Report</option>
                         <option value="attendance">Attendance Report</option>
                         <option value="revenue">Revenue &amp; Payment Report</option>
@@ -143,53 +204,64 @@ export default function Reports() {
                     <label>To Date</label>
                     <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} />
                 </div>
-                <button className="btn" onClick={() => setNotice(`Generated ${report.title} for ${fromDate} to ${toDate}.`)}>
+                <button className="btn" onClick={() => { setNotice(null); fetchReport(category, fromDate, toDate); }}>
                     Generate Report
                 </button>
+                {(fromDate || toDate) && (
+                    <button className="btn btn-outline" onClick={handleClear}>Clear Dates</button>
+                )}
             </div>
 
-            <div className="card-grid">
-                {report.kpis.map(kpi => (
-                    <div key={kpi.label} className="card stat-card">
-                        <span className="stat-label">{kpi.label}</span>
-                        <span className="stat-value">{kpi.value}</span>
-                        <div><span className={`badge ${kpi.tone}`}>{kpi.badge}</span></div>
+            {loading ? (
+                <div className="card muted">Generating report...</div>
+            ) : payload ? (
+                <>
+                    <div className="card-grid">
+                        {kpis.map(kpi => (
+                            <div key={kpi.label} className="card stat-card">
+                                <span className="stat-label">{kpi.label}</span>
+                                <span className="stat-value">{kpi.value}</span>
+                                <div><span className={`badge ${kpi.tone}`}>{kpi.badge}</span></div>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
 
-            <div className="card stack">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                    <h3 style={{ margin: 0 }}>{report.title}</h3>
-                    <span className="muted" style={{ fontSize: 13 }}>{report.rows.length} records shown</span>
-                </div>
-                <div className="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                {report.columns.map(col => <th key={col}>{col}</th>)}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {report.rows.map((row, idx) => (
-                                <tr key={idx}>
-                                    {row.map((cell, cIdx) => (
-                                        <td key={cIdx}>
-                                            {BADGE_FOR[cell] ? (
-                                                <span className={`badge ${BADGE_FOR[cell]}`}>{cell}</span>
-                                            ) : cIdx === 0 ? (
-                                                <strong>{cell}</strong>
-                                            ) : (
-                                                cell
-                                            )}
-                                        </td>
+                    <div className="card stack">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                            <h3 style={{ margin: 0 }}>{title}</h3>
+                            <span className="muted" style={{ fontSize: 13 }}>{rows.length} records</span>
+                        </div>
+                        <div className="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        {columns.map(col => <th key={col}>{col}</th>)}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.length === 0 ? (
+                                        <tr><td colSpan={columns.length} className="empty">No records found for this filter.</td></tr>
+                                    ) : rows.map((row, idx) => (
+                                        <tr key={idx}>
+                                            {row.map((cell, cIdx) => (
+                                                <td key={cIdx}>
+                                                    {BADGE_FOR[cell] ? (
+                                                        <span className={`badge ${BADGE_FOR[cell]}`}>{cell}</span>
+                                                    ) : cIdx === 0 ? (
+                                                        <strong>{cell}</strong>
+                                                    ) : (
+                                                        cell
+                                                    )}
+                                                </td>
+                                            ))}
+                                        </tr>
                                     ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </>
+            ) : null}
         </div>
     );
 }

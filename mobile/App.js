@@ -17,7 +17,7 @@ import MyWorkoutPlanScreen from './screens/MyWorkoutPlanScreen';
 import MyPaymentsScreen from './screens/MyPaymentsScreen';
 
 // Global Axios URL for Uni/Home Hotspot
-axios.defaults.baseURL = 'http://192.168.8.115:5207';
+axios.defaults.baseURL = 'http://172.20.10.13:5207';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
