@@ -35,6 +35,26 @@ namespace GymManagement.API.Controllers
             return CreatedAtAction(nameof(GetAllClasses), new { id = createdClass.ClassId }, createdClass);
         }
 
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> UpdateClass(int id, [FromBody] UpdateGymClassDto dto)
+        {
+            var (success, message) = await _classService.UpdateClassAsync(id, dto);
+            if (!success) return BadRequest(new { Message = message });
+
+            return Ok(new { Message = message });
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> DeleteClass(int id)
+        {
+            var (success, message) = await _classService.DeleteClassAsync(id);
+            if (!success) return BadRequest(new { Message = message });
+
+            return Ok(new { Message = message });
+        }
+
         [HttpGet("my-bookings")]
         [Authorize(Roles = "Member")]
         public async Task<IActionResult> GetMyBookings()

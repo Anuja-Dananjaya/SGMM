@@ -8,20 +8,23 @@ const EMPTY_FORM = {
     classDate: '',
     startTime: '',
     endTime: '',
-    capacity: ''
+    capacity: '',
+    status: 'Active',
 };
 
 const formatTimeSpan = (t) => (t && t.length === 5 ? `${t}:00` : t);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 const fmtTime = (t) => (t ? String(t).slice(0, 5) : '—');
+const toDateInput = (d) => (d ? String(d).slice(0, 10) : '');
 
 export default function AdminClasses() {
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
+    const [editingClassId, setEditingClassId] = useState(null);
     const [search, setSearch] = useState('');
     const [formData, setFormData] = useState(EMPTY_FORM);
-    const [message, setMessage] = useState(null); // { type: 'success' | 'error', text }
+    const [message, setMessage] = useState(null);
 
     // Bookings panel state
     const [selectedClass, setSelectedClass] = useState(null);
@@ -60,6 +63,36 @@ export default function AdminClasses() {
         }
     };
 
+    const openCreateForm = () => {
+        setMessage(null);
+        setEditingClassId(null);
+        setFormData(EMPTY_FORM);
+        setShowForm(true);
+    };
+
+    const openEditForm = (gymClass) => {
+        setMessage(null);
+        setEditingClassId(gymClass.classId);
+        setFormData({
+            trainerId: String(gymClass.trainerId ?? '1'),
+            className: gymClass.className || '',
+            description: gymClass.description || '',
+            classDate: toDateInput(gymClass.classDate),
+            startTime: fmtTime(gymClass.startTime),
+            endTime: fmtTime(gymClass.endTime),
+            capacity: String(gymClass.capacity ?? ''),
+            status: gymClass.status || 'Active',
+        });
+        setShowForm(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const closeForm = () => {
+        setShowForm(false);
+        setEditingClassId(null);
+        setFormData(EMPTY_FORM);
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -67,8 +100,13 @@ export default function AdminClasses() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setMessage(null);
-        setLoading(true);
 
+        if (formData.endTime <= formData.startTime) {
+            setMessage({ type: 'error', text: 'End time must be after start time.' });
+            return;
+        }
+
+        setLoading(true);
         try {
             const payload = {
                 trainerId: parseInt(formData.trainerId, 10),
@@ -77,22 +115,49 @@ export default function AdminClasses() {
                 classDate: formData.classDate,
                 startTime: formatTimeSpan(formData.startTime),
                 endTime: formatTimeSpan(formData.endTime),
-                capacity: parseInt(formData.capacity, 10)
+                capacity: parseInt(formData.capacity, 10),
+                ...(editingClassId ? { status: formData.status } : {}),
             };
 
-            await axios.post('/api/Classes', payload, authConfig());
-            setMessage({ type: 'success', text: 'Class scheduled successfully.' });
-            setFormData(EMPTY_FORM);
-            setShowForm(false);
+            if (editingClassId) {
+                const res = await axios.put(`/api/Classes/${editingClassId}`, payload, authConfig());
+                setMessage({ type: 'success', text: res.data?.message || res.data?.Message || 'Class updated successfully.' });
+            } else {
+                await axios.post('/api/Classes', payload, authConfig());
+                setMessage({ type: 'success', text: 'Class scheduled successfully.' });
+            }
+
+            closeForm();
             fetchClasses();
         } catch (error) {
-            console.error('Error creating class:', error);
+            console.error('Error saving class:', error);
             setMessage({
                 type: 'error',
-                text: error.response?.data?.message || error.response?.data?.Message || 'Failed to schedule class.'
+                text: error.response?.data?.message || error.response?.data?.Message || 'Failed to save class.'
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteClass = async (gymClass) => {
+        if (!window.confirm(`Delete "${gymClass.className}"? This cannot be undone.`)) return;
+        setMessage(null);
+
+        try {
+            const res = await axios.delete(`/api/Classes/${gymClass.classId}`, authConfig());
+            setMessage({ type: 'success', text: res.data?.message || res.data?.Message || 'Class deleted successfully.' });
+            if (selectedClass?.classId === gymClass.classId) {
+                setSelectedClass(null);
+                setBookings([]);
+            }
+            fetchClasses();
+        } catch (error) {
+            console.error('Error deleting class:', error);
+            setMessage({
+                type: 'error',
+                text: error.response?.data?.message || error.response?.data?.Message || 'Failed to delete class.'
+            });
         }
     };
 
@@ -120,7 +185,8 @@ export default function AdminClasses() {
         if (!q) return classes;
         return classes.filter(c =>
             c.className?.toLowerCase().includes(q) ||
-            c.description?.toLowerCase().includes(q)
+            c.description?.toLowerCase().includes(q) ||
+            c.status?.toLowerCase().includes(q)
         );
     }, [classes, search]);
 
@@ -128,18 +194,14 @@ export default function AdminClasses() {
         <div className="stack">
             <div className="page-header">
                 <div>
-                    <h1>Classes & Bookings</h1>
-                    <p>Schedule gym classes and manage member bookings.</p>
+                    <h1>Classes &amp; Bookings</h1>
+                    <p>Schedule, edit, and manage gym classes and member bookings.</p>
                 </div>
-                <button
-                    className="btn"
-                    onClick={() => {
-                        setMessage(null);
-                        setShowForm(prev => !prev);
-                    }}
-                >
-                    {showForm ? 'Close Form' : '+ Schedule Class'}
-                </button>
+                {showForm ? (
+                    <button className="btn btn-outline" onClick={closeForm}>Close Form</button>
+                ) : (
+                    <button className="btn" onClick={openCreateForm}>+ Schedule Class</button>
+                )}
             </div>
 
             {message && (
@@ -148,7 +210,7 @@ export default function AdminClasses() {
 
             {showForm && (
                 <div className="card">
-                    <h3>Schedule new class</h3>
+                    <h3>{editingClassId ? 'Edit class' : 'Schedule new class'}</h3>
                     <form onSubmit={handleSubmit} className="form-grid">
                         <div className="field">
                             <label>Class Name</label>
@@ -224,12 +286,21 @@ export default function AdminClasses() {
                                 required
                             />
                         </div>
+                        {editingClassId && (
+                            <div className="field">
+                                <label>Status</label>
+                                <select name="status" value={formData.status} onChange={handleChange}>
+                                    <option value="Active">Active</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        )}
                         <div className="form-actions">
-                            <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>
+                            <button type="button" className="btn btn-outline" onClick={closeForm}>
                                 Cancel
                             </button>
                             <button type="submit" className="btn" disabled={loading}>
-                                {loading ? 'Scheduling...' : 'Create Class'}
+                                {loading ? 'Saving...' : editingClassId ? 'Save Changes' : 'Create Class'}
                             </button>
                         </div>
                     </form>
@@ -241,7 +312,7 @@ export default function AdminClasses() {
                     <label>Search Classes</label>
                     <input
                         type="text"
-                        placeholder="Search by class name or description..."
+                        placeholder="Search by class name, description or status..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -260,7 +331,7 @@ export default function AdminClasses() {
                             <th>Time</th>
                             <th>Capacity / Enrolled</th>
                             <th>Status</th>
-                            <th style={{ width: 170 }}>Actions</th>
+                            <th style={{ width: 280 }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -273,6 +344,7 @@ export default function AdminClasses() {
                         ) : (
                             filteredClasses.map(c => {
                                 const isFull = c.enrolledCount >= c.capacity;
+                                const isCancelled = c.status === 'Cancelled';
                                 return (
                                     <tr key={c.classId}>
                                         <td>
@@ -289,15 +361,31 @@ export default function AdminClasses() {
                                             </span>
                                         </td>
                                         <td>
-                                            <span className="badge badge-info">{c.status}</span>
+                                            <span className={`badge ${isCancelled ? 'badge-danger' : 'badge-info'}`}>
+                                                {c.status}
+                                            </span>
                                         </td>
                                         <td>
-                                            <button
-                                                className="btn btn-outline btn-sm"
-                                                onClick={() => fetchClassBookings(c)}
-                                            >
-                                                View Bookings ({c.enrolledCount})
-                                            </button>
+                                            <div className="toolbar">
+                                                <button
+                                                    className="btn btn-outline btn-sm"
+                                                    onClick={() => fetchClassBookings(c)}
+                                                >
+                                                    Bookings ({c.enrolledCount})
+                                                </button>
+                                                <button
+                                                    className="btn btn-outline btn-sm"
+                                                    onClick={() => openEditForm(c)}
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    className="btn btn-danger btn-sm"
+                                                    onClick={() => handleDeleteClass(c)}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );

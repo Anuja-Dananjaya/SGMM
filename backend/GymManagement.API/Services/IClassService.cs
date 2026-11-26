@@ -8,6 +8,8 @@ namespace GymManagement.API.Services
     {
         Task<IEnumerable<GymClassDto>> GetAllClassesAsync();
         Task<GymClassDto> CreateClassAsync(CreateGymClassDto dto);
+        Task<(bool Success, string Message)> UpdateClassAsync(int classId, UpdateGymClassDto dto);
+        Task<(bool Success, string Message)> DeleteClassAsync(int classId);
         Task<bool> BookClassAsync(string userId, int classId);
         Task<IEnumerable<ClassBookingDto>> GetMyBookingsAsync(string userId);
         Task<IEnumerable<ClassBookingDto>> GetClassBookingsAsync(int classId);

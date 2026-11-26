@@ -58,6 +58,7 @@ namespace GymManagement.API.Services
                 ClassId = newClass.ClassId,
                 TrainerId = newClass.TrainerId,
                 ClassName = newClass.ClassName,
+                Description = newClass.Description,
                 ClassDate = newClass.ClassDate,
                 StartTime = newClass.StartTime,
                 EndTime = newClass.EndTime,
@@ -65,6 +66,61 @@ namespace GymManagement.API.Services
                 Status = newClass.Status,
                 EnrolledCount = 0
             };
+        }
+
+        public async Task<(bool Success, string Message)> UpdateClassAsync(int classId, UpdateGymClassDto dto)
+        {
+            var gymClass = await _context.GymClasses.FindAsync(classId);
+            if (gymClass == null) return (false, "Class not found.");
+
+            if (dto.EndTime <= dto.StartTime)
+                return (false, "End time must be after start time.");
+
+            var status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim();
+            if (status != "Active" && status != "Cancelled")
+                return (false, "Status must be Active or Cancelled.");
+
+            var enrolledCount = await _context.ClassBookings
+                .CountAsync(b => b.ClassId == classId && b.Status == "Confirmed");
+
+            if (dto.Capacity < enrolledCount)
+                return (false, $"Capacity cannot be lower than the {enrolledCount} confirmed bookings.");
+
+            gymClass.TrainerId = dto.TrainerId;
+            gymClass.ClassName = dto.ClassName.Trim();
+            gymClass.Description = dto.Description?.Trim();
+            gymClass.ClassDate = dto.ClassDate;
+            gymClass.StartTime = dto.StartTime;
+            gymClass.EndTime = dto.EndTime;
+            gymClass.Capacity = dto.Capacity;
+            gymClass.Status = status;
+
+            await _context.SaveChangesAsync();
+            return (true, "Class updated successfully.");
+        }
+
+        public async Task<(bool Success, string Message)> DeleteClassAsync(int classId)
+        {
+            var gymClass = await _context.GymClasses.FindAsync(classId);
+            if (gymClass == null) return (false, "Class not found.");
+
+            var hasConfirmedBookings = await _context.ClassBookings
+                .AnyAsync(b => b.ClassId == classId && b.Status == "Confirmed");
+
+            if (hasConfirmedBookings)
+                return (false, "Cannot delete a class that has confirmed bookings. Cancel bookings first or set status to Cancelled.");
+
+            var oldBookings = await _context.ClassBookings
+                .Where(b => b.ClassId == classId)
+                .ToListAsync();
+            if (oldBookings.Any())
+            {
+                _context.ClassBookings.RemoveRange(oldBookings);
+            }
+
+            _context.GymClasses.Remove(gymClass);
+            await _context.SaveChangesAsync();
+            return (true, "Class deleted successfully.");
         }
 
         public async Task<bool> BookClassAsync(string userId, int classId)

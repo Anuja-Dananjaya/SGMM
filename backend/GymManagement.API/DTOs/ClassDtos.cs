@@ -40,6 +40,18 @@ namespace GymManagement.API.DTOs
         [Required] public DateTime ClassDate { get; set; }
         [Required] public TimeSpan StartTime { get; set; }
         [Required] public TimeSpan EndTime { get; set; }
-        [Required] public int Capacity { get; set; }
+        [Required] [Range(1, 500)] public int Capacity { get; set; }
+    }
+
+    public class UpdateGymClassDto
+    {
+        [Required] public int TrainerId { get; set; }
+        [Required] [MaxLength(100)] public string ClassName { get; set; } = string.Empty;
+        [MaxLength(255)] public string? Description { get; set; }
+        [Required] public DateTime ClassDate { get; set; }
+        [Required] public TimeSpan StartTime { get; set; }
+        [Required] public TimeSpan EndTime { get; set; }
+        [Required] [Range(1, 500)] public int Capacity { get; set; }
+        [Required] [MaxLength(20)] public string Status { get; set; } = "Active";
     }
 }
