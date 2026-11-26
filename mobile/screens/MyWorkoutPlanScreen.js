@@ -1,56 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 
-
-const SAMPLE_PLANS = [
-    {
-        id: 1,
-        title: '8-Week Lean Strength Split',
-        trainerName: 'Coach Ruwan Bandara',
-        goal: 'Build upper-body strength and improve core endurance',
-        startDate: '2026-11-01T00:00:00Z',
-        endDate: '2026-12-27T00:00:00Z',
-        days: [
-            {
-                id: 11,
-                dayName: 'Day 1 — Push (Chest & Shoulders)',
-                exercises: [
-                    { id: 101, exerciseName: 'Barbell Bench Press', sets: 4, reps: 8, restTime: '90s', notes: 'Control the lowering phase' },
-                    { id: 102, exerciseName: 'Incline Dumbbell Press', sets: 3, reps: 10, restTime: '60s', notes: 'Full range of motion' },
-                    { id: 103, exerciseName: 'Lateral Raises', sets: 3, reps: 15, restTime: '45s', notes: '' },
-                ],
-            },
-            {
-                id: 12,
-                dayName: 'Day 2 — Pull & Core',
-                exercises: [
-                    { id: 104, exerciseName: 'Lat Pulldown', sets: 4, reps: 10, restTime: '60s', notes: 'Squeeze shoulder blades' },
-                    { id: 105, exerciseName: 'Hanging Leg Raises', sets: 3, reps: 12, restTime: '45s', notes: '' },
-                ],
-            },
-        ],
-    },
-];
-
 export default function MyWorkoutPlanScreen() {
     const [plans, setPlans] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [expandedPlanId, setExpandedPlanId] = useState(1);
+    const [expandedPlanId, setExpandedPlanId] = useState(null);
 
-    useEffect(() => {
-        fetchMyPlans();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchMyPlans();
+        }, [])
+    );
 
     const fetchMyPlans = async () => {
         try {
             const token = await SecureStore.getItemAsync('token');
-
             if (!token) {
-                setPlans(SAMPLE_PLANS);
-                setLoading(false);
+                setPlans([]);
                 return;
             }
 
@@ -58,9 +28,14 @@ export default function MyWorkoutPlanScreen() {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            setPlans(response.data?.length ? response.data : SAMPLE_PLANS);
-        } catch {
-            setPlans(SAMPLE_PLANS);
+            const list = Array.isArray(response.data) ? response.data : [];
+            setPlans(list);
+            if (list.length > 0 && expandedPlanId === null) {
+                setExpandedPlanId(list[0].id);
+            }
+        } catch (error) {
+            console.error('Failed to fetch workout plans:', error);
+            setPlans([]);
         } finally {
             setLoading(false);
         }

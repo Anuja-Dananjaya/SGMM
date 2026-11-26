@@ -1,53 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const SAMPLE_MEMBERS = [
-    { id: 1, fullName: 'Kasun Perera' },
-    { id: 2, fullName: 'Nimali Fernando' },
-    { id: 3, fullName: 'Dinesh Kumara' },
-];
-
-const SAMPLE_PLANS = [
-    {
-        id: 1,
-        title: '8-Week Hypertrophy Split',
-        trainerName: 'Kasun Perera',
-        goal: 'Lean muscle gain',
-        startDate: '2026-11-01',
-        endDate: '2026-12-27',
-        days: [
-            {
-                dayName: 'Day 1 — Push (Chest, Shoulders & Triceps)',
-                exercises: [
-                    { exerciseName: 'Barbell Bench Press', sets: 4, reps: 8, restTime: '90s', notes: 'Control eccentric' },
-                    { exerciseName: 'Overhead Dumbbell Press', sets: 3, reps: 10, restTime: '60s', notes: '' },
-                ],
-            },
-        ],
-    },
-    {
-        id: 2,
-        title: 'Fat Loss & Conditioning Circuit',
-        trainerName: 'Nimali Fernando',
-        goal: 'Cardio endurance & fat loss',
-        startDate: '2026-11-05',
-        endDate: '2026-12-05',
-        days: [
-            {
-                dayName: 'Day 1 — Full Body Metabolic',
-                exercises: [
-                    { exerciseName: 'Kettlebell Swings', sets: 4, reps: 15, restTime: '45s', notes: 'Keep core braced' },
-                ],
-            },
-        ],
-    },
-];
-
 export default function CreateWorkoutPlan() {
     const [view, setView] = useState('list');
-    const [members, setMembers] = useState(SAMPLE_MEMBERS);
-    const [existingPlans, setExistingPlans] = useState(SAMPLE_PLANS);
-    const [loading, setLoading] = useState(false);
+    const [members, setMembers] = useState([]);
+    const [existingPlans, setExistingPlans] = useState([]);
+    const [loadingList, setLoadingList] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [message, setMessage] = useState(null);
 
@@ -62,40 +21,42 @@ export default function CreateWorkoutPlan() {
 
     const [plan, setPlan] = useState(initialPlanState);
 
+    const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+
     useEffect(() => {
-        fetchMembers();
-        fetchPlans();
+        fetchData();
     }, []);
 
-    const fetchMembers = async () => {
-        const token = localStorage.getItem('token');
-        if (!token || token === 'demo-token') return;
+    const fetchData = async () => {
+        setLoadingList(true);
         try {
-            const response = await axios.get('/api/Members', { headers: { Authorization: `Bearer ${token}` } });
-            if (response.data?.length) setMembers(response.data);
-        } catch { /* keep sample */ }
-    };
-
-    const fetchPlans = async () => {
-        const token = localStorage.getItem('token');
-        if (!token || token === 'demo-token') return;
-        try {
-            const response = await axios.get('/api/WorkoutPlans/trainer', { headers: { Authorization: `Bearer ${token}` } });
-            if (response.data?.length) setExistingPlans(response.data);
-        } catch { /* keep sample */ }
+            const headers = authHeaders();
+            const [membersRes, plansRes] = await Promise.all([
+                axios.get('/api/Members', { headers }),
+                axios.get('/api/WorkoutPlans/trainer', { headers })
+            ]);
+            setMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
+            setExistingPlans(Array.isArray(plansRes.data) ? plansRes.data : []);
+        } catch (err) {
+            console.error('Failed to load workout plans:', err);
+            setMessage({ type: 'error', text: 'Failed to load workout plans.' });
+        } finally {
+            setLoadingList(false);
+        }
     };
 
     const handleEditClick = (selectedPlan) => {
+        setMessage(null);
         setPlan({
             memberId: members.find(m => m.fullName === selectedPlan.trainerName)?.id || '',
             title: selectedPlan.title,
-            goal: selectedPlan.goal,
+            goal: selectedPlan.goal || '',
             startDate: selectedPlan.startDate.split('T')[0],
             endDate: selectedPlan.endDate.split('T')[0],
             days: selectedPlan.days.map(d => ({
                 dayName: d.dayName,
                 exercises: d.exercises.map(e => ({
-                    exerciseName: e.exerciseName, sets: e.sets, reps: e.reps, restTime: e.restTime, notes: e.notes
+                    exerciseName: e.exerciseName, sets: e.sets, reps: e.reps, restTime: e.restTime || '', notes: e.notes || ''
                 }))
             }))
         });
@@ -105,53 +66,37 @@ export default function CreateWorkoutPlan() {
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this workout plan?')) return;
-        const token = localStorage.getItem('token');
-        if (!token || token === 'demo-token') {
-            setExistingPlans(prev => prev.filter(p => p.id !== id));
-            setMessage({ type: 'success', text: 'Workout plan removed.' });
-            return;
-        }
+        setMessage(null);
         try {
-            await axios.delete(`/api/WorkoutPlans/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-            setExistingPlans(existingPlans.filter(p => p.id !== id));
+            await axios.delete(`/api/WorkoutPlans/${id}`, { headers: authHeaders() });
+            setExistingPlans(prev => prev.filter(p => p.id !== id));
             setMessage({ type: 'success', text: 'Workout plan deleted.' });
         } catch {
-            setMessage({ type: 'error', text: 'Failed to delete plan.' });
+            setMessage({ type: 'error', text: 'Failed to delete workout plan.' });
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        const token = localStorage.getItem('token');
-
-        if (!token || token === 'demo-token') {
-            const m = members.find(x => String(x.id) === String(plan.memberId));
-            setExistingPlans(prev => [{ id: editingId || Date.now(), ...plan, trainerName: m?.fullName || 'Member' }, ...prev.filter(p => p.id !== editingId)]);
-            setMessage({ type: 'success', text: editingId ? 'Workout plan updated.' : 'Workout plan created.' });
-            setPlan(initialPlanState);
-            setEditingId(null);
-            setView('list');
-            setLoading(false);
-            return;
-        }
-
+        setMessage(null);
+        setSaving(true);
         try {
             if (editingId) {
-                await axios.put(`/api/WorkoutPlans/${editingId}`, plan, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.put(`/api/WorkoutPlans/${editingId}`, plan, { headers: authHeaders() });
                 setMessage({ type: 'success', text: 'Workout plan updated successfully.' });
             } else {
-                await axios.post('/api/WorkoutPlans', plan, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.post('/api/WorkoutPlans', plan, { headers: authHeaders() });
                 setMessage({ type: 'success', text: 'Workout plan created successfully.' });
             }
             setPlan(initialPlanState);
             setEditingId(null);
-            fetchPlans();
             setView('list');
-        } catch {
-            setMessage({ type: 'error', text: 'Error saving workout plan.' });
+            fetchData();
+        } catch (err) {
+            const msg = err.response?.data?.message || err.response?.data?.Message || 'Error saving workout plan.';
+            setMessage({ type: 'error', text: msg });
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
@@ -217,7 +162,9 @@ export default function CreateWorkoutPlan() {
                             </tr>
                         </thead>
                         <tbody>
-                            {existingPlans.length === 0 ? (
+                            {loadingList ? (
+                                <tr><td colSpan="5" className="empty">Loading workout plans...</td></tr>
+                            ) : existingPlans.length === 0 ? (
                                 <tr><td colSpan="5" className="empty">No workout plans created yet.</td></tr>
                             ) : existingPlans.map(p => (
                                 <tr key={p.id}>
@@ -314,8 +261,8 @@ export default function CreateWorkoutPlan() {
 
                     <div className="toolbar" style={{ justifyContent: 'flex-end' }}>
                         <button type="button" className="btn btn-outline" onClick={addDay}>+ Add Another Day</button>
-                        <button type="submit" className="btn" disabled={loading}>
-                            {loading ? 'Saving...' : editingId ? 'Update Plan' : 'Save Workout Plan'}
+                        <button type="submit" className="btn" disabled={saving}>
+                            {saving ? 'Saving...' : editingId ? 'Update Plan' : 'Save Workout Plan'}
                         </button>
                     </div>
                 </form>

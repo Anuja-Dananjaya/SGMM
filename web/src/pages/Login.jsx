@@ -1,12 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
 
-const DEMO_USERS = [
-    { role: "Admin", name: "Anuja (Admin)" },
-    { role: "Staff", name: "Kasun (Front Desk)" },
-    { role: "Trainer", name: "Coach Ruwan" },
-];
-
 export default function Login({ onLoginSuccess }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -27,16 +21,9 @@ export default function Login({ onLoginSuccess }) {
             })
             .catch(err => {
                 console.error("Login failed:", err);
-                setError("Invalid email or password.");
+                setError(err.response?.data?.message || "Invalid email or password.");
             })
             .finally(() => setLoading(false));
-    };
-
-    const handleDemoPreview = (role, name) => {
-        localStorage.setItem("token", "demo-token");
-        localStorage.setItem("userRole", role);
-        localStorage.setItem("userName", name);
-        onLoginSuccess();
     };
 
     return (
@@ -77,7 +64,6 @@ export default function Login({ onLoginSuccess }) {
                         {loading ? "Signing in..." : "Sign In"}
                     </button>
                 </form>
-
             </div>
         </div>
     );

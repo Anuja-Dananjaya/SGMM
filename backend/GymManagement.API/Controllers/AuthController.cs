@@ -23,10 +23,18 @@ namespace GymManagement.API.Controllers
         }
 
         [HttpPost("register")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
+            if (dto.Role != "Admin" && dto.Role != "Staff" && dto.Role != "Trainer" && dto.Role != "Member")
+                return BadRequest(new { message = "Role must be Admin, Staff, Trainer or Member." });
+
+            // Staff may only register Member accounts (prevents privilege escalation).
+            if (User.IsInRole("Staff") && !User.IsInRole("Admin") && dto.Role != "Member")
+                return Forbid();
+
             var success = await _authService.RegisterAsync(dto);
-            if (!success) return BadRequest(new { message = "Registration failed. Check password complexity." });
+            if (!success) return BadRequest(new { message = "Registration failed. Check email uniqueness and password complexity." });
             return Ok(new { message = "User registered successfully" });
         }
 
