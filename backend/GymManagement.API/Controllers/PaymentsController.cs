@@ -24,13 +24,13 @@ namespace GymManagement.API.Controllers
         [HttpGet]
         [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> GetAllPayments(
-        [FromQuery] DateTime? startDate, 
-        [FromQuery] DateTime? endDate, 
-        [FromQuery] int? memberId)
-
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null,
+            [FromQuery] int? memberId = null,
+            [FromQuery] string? status = null)
         {
-        var payments = await _paymentService.GetAllPaymentsAsync(startDate, endDate, memberId);
-        return Ok(payments);
+            var payments = await _paymentService.GetAllPaymentsAsync(startDate, endDate, memberId, status);
+            return Ok(payments);
         }
 
         // POST: api/payments (Admins & Staff record a new payment)
@@ -38,8 +38,26 @@ namespace GymManagement.API.Controllers
         [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> RecordPayment([FromBody] CreatePaymentDto dto)
         {
-            var payment = await _paymentService.RecordPaymentAsync(dto);
-            return CreatedAtAction(nameof(GetAllPayments), new { id = payment.PaymentId }, payment);
+            try
+            {
+                var payment = await _paymentService.RecordPaymentAsync(dto);
+                return CreatedAtAction(nameof(GetAllPayments), new { id = payment.PaymentId }, payment);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        // PUT: api/payments/{id}/status (Mark a pending payment as Completed or Refunded)
+        [HttpPut("{id}/status")]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> UpdatePaymentStatus(int id, [FromBody] UpdatePaymentStatusDto dto)
+        {
+            var (success, message) = await _paymentService.UpdatePaymentStatusAsync(id, dto);
+            if (!success) return BadRequest(new { Message = message });
+
+            return Ok(new { Message = message });
         }
 
         // GET: api/payments/my-history (Members view their own receipts)

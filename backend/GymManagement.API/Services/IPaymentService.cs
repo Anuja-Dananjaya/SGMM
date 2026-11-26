@@ -8,9 +8,15 @@ namespace GymManagement.API.Services
     public interface IPaymentService
     {
         Task<PaymentDto> RecordPaymentAsync(CreatePaymentDto dto);
-        
-        Task<IEnumerable<PaymentDto>> GetAllPaymentsAsync(DateTime? startDate = null, DateTime? endDate = null, int? memberId = null);
-        
+
+        Task<IEnumerable<PaymentDto>> GetAllPaymentsAsync(
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            int? memberId = null,
+            string? status = null);
+
         Task<IEnumerable<PaymentDto>> GetMemberPaymentsAsync(string userId);
+
+        Task<(bool Success, string Message)> UpdatePaymentStatusAsync(int paymentId, UpdatePaymentStatusDto dto);
     }
 }
