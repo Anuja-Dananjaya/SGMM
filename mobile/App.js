@@ -15,6 +15,7 @@ import BookAppointmentScreen from './screens/BookAppointmentScreen';
 import MyAppointmentsScreen from './screens/MyAppointmentsScreen';
 import MyWorkoutPlanScreen from './screens/MyWorkoutPlanScreen';
 import MyPaymentsScreen from './screens/MyPaymentsScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
 
 // Global Axios URL for Uni/Home Hotspot
 axios.defaults.baseURL = 'http://172.20.10.13:5207';
@@ -113,6 +114,17 @@ export default function App() {
                     options={{ 
                         headerShown: true, 
                         title: 'My Payments & Billing',
+                        headerStyle: { backgroundColor: '#1a1a1a' },
+                        headerTintColor: '#fff'
+                    }} 
+                />
+
+                <Stack.Screen 
+                    name="Notifications" 
+                    component={NotificationsScreen} 
+                    options={{ 
+                        headerShown: true, 
+                        title: 'My Notifications',
                         headerStyle: { backgroundColor: '#1a1a1a' },
                         headerTintColor: '#fff'
                     }} 

@@ -209,6 +209,13 @@ export default function ProfileScreen({ navigation }) {
             </View>
 
             <TouchableOpacity
+                style={[styles.navButton, { backgroundColor: '#7c3aed' }]}
+                onPress={() => navigation.navigate('Notifications')}
+            >
+                <Text style={styles.btnText}>My Notifications</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
                 style={[styles.navButton, { backgroundColor: '#2563eb' }]}
                 onPress={() => navigation.navigate('AttendanceHistory')}
             >

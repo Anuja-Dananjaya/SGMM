@@ -12,10 +12,12 @@ namespace GymManagement.API.Services
     public class ClassService : IClassService
     {
         private readonly AppDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public ClassService(AppDbContext context)
+        public ClassService(AppDbContext context, INotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
 
         public async Task<IEnumerable<GymClassDto>> GetAllClassesAsync()
@@ -125,7 +127,9 @@ namespace GymManagement.API.Services
 
         public async Task<bool> BookClassAsync(string userId, int classId)
         {
-            var member = await _context.Members.FirstOrDefaultAsync(m => m.UserId == userId);
+            var member = await _context.Members
+                .Include(m => m.User)
+                .FirstOrDefaultAsync(m => m.UserId == userId);
             if (member == null) throw new InvalidOperationException("Member profile not found.");
 
             var gymClass = await _context.GymClasses.FindAsync(classId);
@@ -147,6 +151,24 @@ namespace GymManagement.API.Services
 
             _context.ClassBookings.Add(booking);
             await _context.SaveChangesAsync();
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(member.User?.Email))
+                {
+                    await _notificationService.SendBookingConfirmationAsync(
+                        member.User.FullName,
+                        member.User.Email,
+                        gymClass.ClassName,
+                        gymClass.ClassDate,
+                        gymClass.StartTime);
+                }
+            }
+            catch
+            {
+                // Email/notification logging should never fail the class booking itself.
+            }
+
             return true;
         }
 

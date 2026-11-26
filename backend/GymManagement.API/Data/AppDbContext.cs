@@ -21,6 +21,7 @@ namespace GymManagement.API.Data
         public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
         public DbSet<WorkoutDay> WorkoutDays { get; set; }
         public DbSet<WorkoutExercise> WorkoutExercises { get; set; }
+        public DbSet<NotificationLog> NotificationLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
